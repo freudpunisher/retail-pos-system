@@ -31,7 +31,6 @@ import {
   Package,
   Tag,
   TrendingUp,
-  DollarSign,
   AlertTriangle,
   Loader2,
 } from "lucide-react"
@@ -284,11 +283,11 @@ export default function ProductsPage() {
             <Card className="relative overflow-hidden bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-900/10 hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-semibold text-purple-700 dark:text-purple-300">Inventory Value</CardTitle>
-                <DollarSign className="h-5 w-5 text-purple-500 dark:text-purple-400" />
+                <Tag className="h-5 w-5 text-purple-500 dark:text-purple-400" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-purple-800 dark:text-purple-200 animate-pulse">
-                  {productsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : `$${totalInventoryValue.toFixed(2)}`}
+                  {productsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${totalInventoryValue.toFixed(2)} FBU`}
                 </div>
                 <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Total stock value</p>
               </CardContent>
@@ -638,7 +637,7 @@ export default function ProductsPage() {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="prix_vente" className="text-sm font-medium">Selling Price</Label>
+                        <Label htmlFor="prix_vente" className="text-sm font-medium">Selling Price (FBU)</Label>
                         <Input
                           id="prix_vente"
                           type="number"
@@ -658,7 +657,7 @@ export default function ProductsPage() {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="prix_achat" className="text-sm font-medium">Cost Price</Label>
+                        <Label htmlFor="prix_achat" className="text-sm font-medium">Cost Price (FBU)</Label>
                         <Input
                           id="prix_achat"
                           type="number"
@@ -843,7 +842,7 @@ export default function ProductsPage() {
                         <TableHead className="text-foreground font-semibold">Product Name</TableHead>
                         <TableHead className="text-foreground font-semibold">SKU</TableHead>
                         <TableHead className="text-foreground font-semibold">Category</TableHead>
-                        <TableHead className="text-foreground font-semibold">Price</TableHead>
+                        <TableHead className="text-foreground font-semibold">Price (FBU)</TableHead>
                         <TableHead className="text-foreground font-semibold">Stock</TableHead>
                         <TableHead className="text-foreground font-semibold">Status</TableHead>
                         <TableHead className="text-foreground font-semibold">Actions</TableHead>
@@ -864,7 +863,7 @@ export default function ProductsPage() {
                             <TableCell>
                               {categories.find((cat) => cat.id === product.categorie)?.nom || "Unknown"}
                             </TableCell>
-                            <TableCell>${Number(product.prix_vente).toFixed(2)}</TableCell>
+                            <TableCell>{Number(product.prix_vente).toFixed(2)} FBU</TableCell>
                             <TableCell>
                               <div className="flex items-center space-x-2">
                                 <span>{product.stock_minimum}</span>
@@ -990,7 +989,7 @@ export default function ProductsPage() {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="prix_vente" className="text-sm font-medium">Selling Price</Label>
+                      <Label htmlFor="prix_vente" className="text-sm font-medium">Selling Price (FBU)</Label>
                       <Input
                         id="prix_vente"
                         type="number"
@@ -1010,7 +1009,7 @@ export default function ProductsPage() {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="prix_achat" className="text-sm font-medium">Cost Price</Label>
+                      <Label htmlFor="prix_achat" className="text-sm font-medium">Cost Price (FBU)</Label>
                       <Input
                         id="prix_achat"
                         type="number"
