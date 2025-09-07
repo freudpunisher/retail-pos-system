@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, Controller, useFieldArray } from "react-hook-form"
 import { POSLayout } from "@/components/pos-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,101 +30,144 @@ import {
   Store,
   AlertTriangle,
   Loader2,
-  TrendingUp,
-  TrendingDown,
+  Truck,
+  CheckCircle,
 } from "lucide-react"
-import { useStocks } from "@/hooks/useStock"
-import { StockResponse, Produit, PointVente, StockAdjustmentRequest } from "@/types/stock"
+import { useStockTransfers } from "@/hooks/useStockTransfers"
+import {
+  TransfertStock,
+  PointVente,
+  Utilisateur,
+  Produit,
+  CreateTransfertStock,
+  UpdateTransfertStock,
+  CreateTransfertStockLigne,
+} from "@/types/stockTransfers"
 
-interface StockAdjustmentFormData {
-  type: 'adjustment' | 'damage' | 'found' | 'expired';
-  quantity: number;
-  reason: string;
-  reference: string;
+interface TransfertFormData {
+  numero_transfert: string;
+  point_vente_source: string;
+  point_vente_destination: string;
+  status: 'pending' | 'validated' | 'shipped' | 'received' | 'cancelled';
+  demandeur: string;
+  validateur?: string;
+  date_validation?: string;
+  date_expedition?: string;
+  date_reception?: string;
+  commentaire?: string;
+  lignes: {
+    produit: string;
+    quantite_demandee: number;
+    quantite_expediee: number;
+    quantite_recue: number;
+  }[];
 }
 
-interface StockFormData {
-  quantite_actuelle: number;
-  quantite_reservee: number;
-  produit: string;
-  point_vente: string;
-  minimum: number;
-  maximum: number;
-}
+const statusOptions = [
+  { value: "all", label: "Tous les Statuts" },
+  { value: "pending", label: "En Attente" },
+  { value: "validated", label: "Validé" },
+  { value: "shipped", label: "Expédié" },
+  { value: "received", label: "Reçu" },
+  { value: "cancelled", label: "Annulé" },
+]
 
-export default function StockPage() {
+export default function StockTransfersPage() {
   const {
-    stocks,
-    produits,
+    transferts,
     pointsVente,
+    utilisateurs,
+    produits,
     loading,
     error,
-    fetchStocks,
-    fetchProduits,
+    fetchTransfertLignes,
+    createTransfert,
+    updateTransfert,
+    deleteTransfert,
+    createLigne,
+    updateLigne,
+    deleteLigne,
+    fetchTransferts,
     fetchPointsVente,
-    createStock,
-    updateStock,
-    deleteStock,
-    adjustStock,
-  } = useStocks()
+    fetchUtilisateurs,
+    fetchProduits,
+  } = useStockTransfers()
+
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedStore, setSelectedStore] = useState("all")
-  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [selectedStatus, setSelectedStatus] = useState("all")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [selectedStockId, setSelectedStockId] = useState<string | null>(null)
-  const [editingStockId, setEditingStockId] = useState<string | null>(null)
+  const [selectedTransfertId, setSelectedTransfertId] = useState<string | null>(null)
+  const [editingTransfertId, setEditingTransfertId] = useState<string | null>(null)
 
-  const adjustForm = useForm<StockAdjustmentFormData>({
+  const { data: transfertDetails, isLoading: loadingTransfertDetails } = fetchTransfertLignes(selectedTransfertId)
+  const { data: editingTransfertDetails, isLoading: loadingEditingTransfertDetails } = fetchTransfertLignes(editingTransfertId)
+
+  const { register, control, handleSubmit, reset, formState: { errors } } = useForm<TransfertFormData>({
     defaultValues: {
-      type: "adjustment",
-      quantity: 0,
-      reason: "",
-      reference: "",
+      numero_transfert: "",
+      point_vente_source: "",
+      point_vente_destination: "",
+      status: "pending",
+      demandeur: "",
+      validateur: "",
+      date_validation: "",
+      date_expedition: "",
+      date_reception: "",
+      commentaire: "",
+      lignes: [],
     },
   })
 
-  const stockForm = useForm<StockFormData>({
-    defaultValues: {
-      quantite_actuelle: 0,
-      quantite_reservee: 0,
-      produit: "",
-      point_vente: "",
-      minimum: 10,
-      maximum: 100,
-    },
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "lignes",
   })
 
   useEffect(() => {
-    fetchStocks()
-    fetchProduits()
+    fetchTransferts()
     fetchPointsVente()
-  }, [fetchStocks, fetchProduits, fetchPointsVente])
+    fetchUtilisateurs()
+    fetchProduits()
+  }, [fetchTransferts, fetchPointsVente, fetchUtilisateurs, fetchProduits])
 
-  const filteredStocks = stocks.filter((stock) => {
-    const produit = produits.find((p) => p.id === stock.produit)
-    const pointVente = pointsVente.find((pv) => pv.id === stock.point_vente)
-    const matchesSearch = produit?.nom.toLowerCase().includes(searchTerm.toLowerCase()) || false
-    const matchesStore =
-      selectedStore === "all" || (pointVente && pointVente.nom === selectedStore)
-    const matchesCategory =
-      selectedCategory === "all" || (produit && produit.categorie === selectedCategory)
-    return matchesSearch && matchesStore && matchesCategory
+  const filteredTransferts = transferts.filter((transfert) => {
+    const matchesSearch = transfert.numero_transfert.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = selectedStatus === "all" || transfert.status === selectedStatus
+    return matchesSearch && matchesStatus
   })
 
-  const getStatusBadge = (available: number, minimum: number = 10) => {
-    if (available < minimum * 0.5) {
-      return <Badge variant="destructive" className="bg-red-500 text-white">Critique</Badge>
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      pending: <Badge className="bg-gray-500 text-white">En Attente</Badge>,
+      validated: <Badge className="bg-blue-500 text-white">Validé</Badge>,
+      shipped: <Badge className="bg-yellow-500 text-white">Expédié</Badge>,
+      received: <Badge className="bg-green-500 text-white">Reçu</Badge>,
+      cancelled: <Badge className="bg-red-500 text-white">Annulé</Badge>,
     }
-    if (available < minimum) {
-      return <Badge className="bg-yellow-500 text-white">Faible</Badge>
-    }
-    return <Badge className="bg-green-500 text-white">Normal</Badge>
+    return badges[status as keyof typeof badges] || <Badge variant="outline">{status}</Badge>
   }
 
-  const formatDate = (dateString: string) => {
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Package className="h-4 w-4 text-gray-600" />
+      case "validated":
+        return <CheckCircle className="h-4 w-4 text-blue-600" />
+      case "shipped":
+        return <Truck className="h-4 w-4 text-yellow-600" />
+      case "received":
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      case "cancelled":
+        return <AlertTriangle className="h-4 w-4 text-red-600" />
+      default:
+        return <Package className="h-4 w-4 text-gray-600" />
+    }
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Non défini"
     return new Date(dateString).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'short',
@@ -132,108 +175,178 @@ export default function StockPage() {
     })
   }
 
-  const handleAdjustment = async (data: StockAdjustmentFormData) => {
-    if (!selectedStockId) return
+  const handleCreateOrUpdateTransfert = async (data: TransfertFormData) => {
     try {
-      await adjustStock(selectedStockId, data)
-      adjustForm.reset()
-      setIsAdjustModalOpen(false)
-      setSelectedStockId(null)
-    } catch (err) {
-      console.error(err)
-    }
-  }
+      const transfertData: CreateTransfertStock = {
+        numero_transfert: data.numero_transfert,
+        point_vente_source: data.point_vente_source,
+        point_vente_destination: data.point_vente_destination,
+        status: data.status,
+        demandeur: data.demandeur,
+        validateur: data.validateur || undefined,
+        date_validation: data.date_validation || undefined,
+        date_expedition: data.date_expedition || undefined,
+        date_reception: data.date_reception || undefined,
+        commentaire: data.commentaire || "",
+        lignes: data.lignes,
+      }
 
-  const handleCreateOrUpdateStock = async (data: StockFormData) => {
-    try {
-      if (editingStockId) {
-        await updateStock(editingStockId, data)
-        setEditingStockId(null)
+      let transfert: TransfertStock
+      if (editingTransfertId) {
+        transfert = await updateTransfert.mutateAsync({
+          id: editingTransfertId,
+          data: transfertData,
+        })
+        const existingLines = editingTransfertDetails?.lignes || []
+        for (const ligne of data.lignes) {
+          const existingLine = existingLines.find((l) => l.produit === ligne.produit)
+          const ligneData: UpdateTransfertStockLigne = {
+            quantite_demandee: ligne.quantite_demandee,
+            quantite_expediee: ligne.quantite_expediee,
+            quantite_recue: ligne.quantite_recue,
+          }
+          if (existingLine) {
+            await updateLigne.mutateAsync({ id: existingLine.id!, data: ligneData })
+          } else {
+            await createLigne.mutateAsync({
+              produit: ligne.produit,
+              quantite_demandee: ligne.quantite_demandee,
+              quantite_expediee: ligne.quantite_expediee,
+              quantite_recue: ligne.quantite_recue,
+              transfert: editingTransfertId,
+            })
+          }
+        }
+        for (const existingLine of existingLines) {
+          if (!data.lignes.some((l) => l.produit === existingLine.produit)) {
+            await deleteLigne.mutateAsync(existingLine.id!)
+          }
+        }
+        setEditingTransfertId(null)
         setIsEditModalOpen(false)
       } else {
-        await createStock(data)
+        transfert = await createTransfert.mutateAsync(transfertData)
+        for (const ligne of data.lignes) {
+          await createLigne.mutateAsync({
+            produit: ligne.produit,
+            quantite_demandee: ligne.quantite_demandee,
+            quantite_expediee: ligne.quantite_expediee,
+            quantite_recue: ligne.quantite_recue,
+            transfert: transfert.id!,
+          })
+        }
         setIsAddModalOpen(false)
       }
-      stockForm.reset()
+      reset()
     } catch (err) {
       console.error(err)
     }
   }
 
-  const handleEditStock = (stock: StockResponse) => {
-    setEditingStockId(stock.id)
-    stockForm.reset({
-      quantite_actuelle: stock.quantite_actuelle,
-      quantite_reservee: stock.quantite_reservee,
-      produit: stock.produit,
-      point_vente: stock.point_vente,
-      minimum: stock.minimum || 10,
-      maximum: stock.maximum || 100,
+  const handleEditTransfert = (transfert: TransfertStock) => {
+    setEditingTransfertId(transfert.id)
+    reset({
+      numero_transfert: transfert.numero_transfert,
+      point_vente_source: transfert.point_vente_source,
+      point_vente_destination: transfert.point_vente_destination,
+      status: transfert.status,
+      demandeur: transfert.demandeur,
+      validateur: transfert.validateur || "",
+      date_validation: transfert.date_validation?.split('T')[0] || "",
+      date_expedition: transfert.date_expedition?.split('T')[0] || "",
+      date_reception: transfert.date_reception?.split('T')[0] || "",
+      commentaire: transfert.commentaire || "",
+      lignes: (editingTransfertDetails?.lignes || []).map((ligne) => ({
+        produit: ligne.produit,
+        quantite_demandee: ligne.quantite_demandee,
+        quantite_expediee: ligne.quantite_expediee,
+        quantite_recue: ligne.quantite_recue,
+      })),
     })
     setIsEditModalOpen(true)
   }
 
-  const handleDeleteStock = async (id: string) => {
+  const handleDeleteTransfert = async (id: string) => {
     try {
-      await deleteStock(id)
+      await deleteTransfert.mutateAsync(id)
     } catch (err) {
       console.error(err)
     }
   }
 
-  const totalProducts = stocks.length
-  const lowStockItems = stocks.filter((stock) => stock.quantite_actuelle < (stock.minimum || 10)).length
-  const reservedItems = stocks.reduce((sum, stock) => sum + stock.quantite_reservee, 0)
+  const handleValidateTransfert = async (id: string) => {
+    try {
+      await updateTransfert.mutateAsync({ id, data: { status: 'validated' } })
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
-  if (loading && stocks.length === 0) {
+  const handleShipTransfert = async (id: string) => {
+    try {
+      await updateTransfert.mutateAsync({ id, data: { status: 'shipped' } })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleReceiveTransfert = async (id: string) => {
+    try {
+      await updateTransfert.mutateAsync({ id, data: { status: 'received' } })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  if (loading && transferts.length === 0) {
     return (
-      <POSLayout currentPath="/stock">
+      <POSLayout currentPath="/stock/transfers">
         <div className="flex items-center justify-center h-96 bg-background/95 backdrop-blur-sm">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-3 text-lg text-foreground">Chargement des stocks...</span>
+          <span className="ml-3 text-lg text-foreground">Chargement des transferts...</span>
         </div>
       </POSLayout>
     )
   }
 
-  if (error && stocks.length === 0) {
+  if (error && transferts.length === 0) {
     return (
-      <POSLayout currentPath="/stock">
+      <POSLayout currentPath="/stock/transfers">
         <div className="flex items-center justify-center h-96 bg-background/95 backdrop-blur-sm">
           <div className="text-center space-y-4">
             <p className="text-destructive flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 mr-2" />
-              Erreur: {error}
+              Erreur: {error.message}
             </p>
             <Button
               onClick={() => {
-                fetchStocks()
-                fetchProduits()
+                fetchTransferts()
                 fetchPointsVente()
+                fetchUtilisateurs()
+                fetchProduits()
               }}
               className="bg-primary hover:bg-primary/90"
             >
               Réessayer
             </Button>
           </div>
-            </div>
-        </POSLayout>
-      )
-    
+        </div>
+      </POSLayout>
+    )
   }
 
   return (
-    <POSLayout currentPath="/stock">
+    <POSLayout currentPath="/stock/transfers">
       <TooltipProvider>
         <div className="space-y-8 p-6 bg-gradient-to-b from-background to-background/90 min-h-screen">
           {/* Page Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-extrabold text-foreground tracking-tight">
-                Gestion des Stocks
+                Transferts de Stock
               </h1>
               <p className="text-lg text-muted-foreground mt-1">
-                Suivre et gérer l'inventaire à travers tous les points de vente
+                Gérer les transferts de stock entre points de vente
               </p>
             </div>
             <div className="flex space-x-4">
@@ -241,9 +354,10 @@ export default function StockPage() {
                 variant="outline"
                 className="border-primary/20 hover:bg-primary/10 transition-all duration-200"
                 onClick={() => {
-                  fetchStocks()
-                  fetchProduits()
+                  fetchTransferts()
                   fetchPointsVente()
+                  fetchUtilisateurs()
+                  fetchProduits()
                 }}
                 disabled={loading}
               >
@@ -258,131 +372,300 @@ export default function StockPage() {
                 <DialogTrigger asChild>
                   <Button className="bg-primary hover:bg-primary/90 transition-colors">
                     <Plus className="h-4 w-4 mr-2" />
-                    Nouveau Stock
+                    Nouveau Transfert
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-sm rounded-lg shadow-xl">
+                <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw', minWidth: '70vw' }}>
                   <DialogHeader>
-                    <DialogTitle>Ajouter un Nouveau Stock</DialogTitle>
-                    <DialogDescription>Créer un nouvel enregistrement de stock.</DialogDescription>
+                    <DialogTitle>Créer un Transfert de Stock</DialogTitle>
+                    <DialogDescription>Créer un nouveau transfert de stock avec ses articles.</DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={stockForm.handleSubmit(handleCreateOrUpdateStock)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="produit" className="text-sm font-medium">Produit</Label>
-                      <Controller
-                        name="produit"
-                        control={stockForm.control}
-                        rules={{ required: "Produit est requis" }}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className="border-muted">
-                              <SelectValue placeholder="Sélectionner un produit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {produits.map((produit) => (
-                                <SelectItem key={produit.id} value={produit.id}>
-                                  {produit.nom} ({produit.categorie})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {stockForm.formState.errors.produit && (
-                        <p className="text-sm text-destructive">{stockForm.formState.errors.produit.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="point_vente" className="text-sm font-medium">Point de vente</Label>
-                      <Controller
-                        name="point_vente"
-                        control={stockForm.control}
-                        rules={{ required: "Point de vente est requis" }}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className="border-muted">
-                              <SelectValue placeholder="Sélectionner un point de vente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {pointsVente.map((pv) => (
-                                <SelectItem key={pv.id} value={pv.id}>
-                                  {pv.nom}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {stockForm.formState.errors.point_vente && (
-                        <p className="text-sm text-destructive">{stockForm.formState.errors.point_vente.message}</p>
-                      )}
-                    </div>
+                  <form onSubmit={handleSubmit(handleCreateOrUpdateTransfert)} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="quantite_actuelle" className="text-sm font-medium">Quantité Actuelle</Label>
+                        <Label htmlFor="numero_transfert" className="text-sm font-medium">Numéro de Transfert</Label>
                         <Input
-                          id="quantite_actuelle"
-                          type="number"
-                          {...stockForm.register("quantite_actuelle", {
-                            required: "Quantité actuelle est requise",
-                            min: { value: 0, message: "Quantité ne peut pas être négative" },
-                          })}
-                          placeholder="0"
+                          id="numero_transfert"
+                          {...register("numero_transfert", { required: "Numéro de transfert est requis" })}
+                          placeholder="Entrez le numéro de transfert"
                           className="border-muted focus:ring-primary"
                         />
-                        {stockForm.formState.errors.quantite_actuelle && (
-                          <p className="text-sm text-destructive">{stockForm.formState.errors.quantite_actuelle.message}</p>
+                        {errors.numero_transfert && (
+                          <p className="text-sm text-destructive">{errors.numero_transfert.message}</p>
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="quantite_reservee" className="text-sm font-medium">Quantité Réservée</Label>
-                        <Input
-                          id="quantite_reservee"
-                          type="number"
-                          {...stockForm.register("quantite_reservee", {
-                            required: "Quantité réservée est requise",
-                            min: { value: 0, message: "Quantité ne peut pas être négative" },
-                          })}
-                          placeholder="0"
-                          className="border-muted focus:ring-primary"
+                        <Label htmlFor="status" className="text-sm font-medium">Statut</Label>
+                        <Controller
+                          name="status"
+                          control={control}
+                          rules={{ required: "Statut est requis" }}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="border-muted">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {statusOptions.slice(1).map((status) => (
+                                  <SelectItem key={status.value} value={status.value}>
+                                    {status.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         />
-                        {stockForm.formState.errors.quantite_reservee && (
-                          <p className="text-sm text-destructive">{stockForm.formState.errors.quantite_reservee.message}</p>
+                        {errors.status && (
+                          <p className="text-sm text-destructive">{errors.status.message}</p>
                         )}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="minimum" className="text-sm font-medium">Quantité Minimum</Label>
-                        <Input
-                          id="minimum"
-                          type="number"
-                          {...stockForm.register("minimum", {
-                            required: "Quantité minimum est requise",
-                            min: { value: 1, message: "Minimum doit être au moins 1" },
-                          })}
-                          placeholder="10"
-                          className="border-muted focus:ring-primary"
+                        <Label htmlFor="point_vente_source" className="text-sm font-medium">Point de Vente Source</Label>
+                        <Controller
+                          name="point_vente_source"
+                          control={control}
+                          rules={{ required: "Point de vente source est requis" }}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="border-muted">
+                                <SelectValue placeholder="Sélectionner un point de vente" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {pointsVente.map((pv) => (
+                                  <SelectItem key={pv.id} value={pv.id}>
+                                    {pv.nom}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         />
-                        {stockForm.formState.errors.minimum && (
-                          <p className="text-sm text-destructive">{stockForm.formState.errors.minimum.message}</p>
+                        {errors.point_vente_source && (
+                          <p className="text-sm text-destructive">{errors.point_vente_source.message}</p>
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="maximum" className="text-sm font-medium">Quantité Maximum</Label>
+                        <Label htmlFor="point_vente_destination" className="text-sm font-medium">Point de Vente Destination</Label>
+                        <Controller
+                          name="point_vente_destination"
+                          control={control}
+                          rules={{ required: "Point de vente destination est requis" }}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="border-muted">
+                                <SelectValue placeholder="Sélectionner un point de vente" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {pointsVente.map((pv) => (
+                                  <SelectItem key={pv.id} value={pv.id}>
+                                    {pv.nom}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.point_vente_destination && (
+                          <p className="text-sm text-destructive">{errors.point_vente_destination.message}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="demandeur" className="text-sm font-medium">Demandeur</Label>
+                        <Controller
+                          name="demandeur"
+                          control={control}
+                          rules={{ required: "Demandeur est requis" }}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="border-muted">
+                                <SelectValue placeholder="Sélectionner un demandeur" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {utilisateurs.map((user) => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {user.username}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.demandeur && (
+                          <p className="text-sm text-destructive">{errors.demandeur.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="validateur" className="text-sm font-medium">Validateur</Label>
+                        <Controller
+                          name="validateur"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="border-muted">
+                                <SelectValue placeholder="Sélectionner un validateur" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {utilisateurs.map((user) => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {user.username}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="date_validation" className="text-sm font-medium">Date de Validation</Label>
                         <Input
-                          id="maximum"
-                          type="number"
-                          {...stockForm.register("maximum", {
-                            required: "Quantité maximum est requise",
-                            min: { value: 1, message: "Maximum doit être au moins 1" },
-                          })}
-                          placeholder="100"
+                          id="date_validation"
+                          type="date"
+                          {...register("date_validation")}
                           className="border-muted focus:ring-primary"
                         />
-                        {stockForm.formState.errors.maximum && (
-                          <p className="text-sm text-destructive">{stockForm.formState.errors.maximum.message}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="date_expedition" className="text-sm font-medium">Date d'Expédition</Label>
+                        <Input
+                          id="date_expedition"
+                          type="date"
+                          {...register("date_expedition")}
+                          className="border-muted focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="date_reception" className="text-sm font-medium">Date de Réception</Label>
+                      <Input
+                        id="date_reception"
+                        type="date"
+                        {...register("date_reception")}
+                        className="border-muted focus:ring-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="commentaire" className="text-sm font-medium">Commentaire</Label>
+                      <Textarea
+                        id="commentaire"
+                        {...register("commentaire")}
+                        placeholder="Commentaires sur le transfert"
+                        className="border-muted focus:ring-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Articles du Transfert</Label>
+                      <div className="border rounded-lg bg-background/95">
+                        {fields.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">Aucun article ajouté</p>
+                        ) : (
+                          <Table className="w-full">
+                            <TableHeader>
+                              <TableRow className="hover:bg-muted/50">
+                                <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Demandée</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Expédiée</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Reçue</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {fields.map((field, index) => (
+                                <TableRow key={field.id} className="hover:bg-muted/20">
+                                  <TableCell className="py-2">
+                                    <Controller
+                                      name={`lignes.${index}.produit`}
+                                      control={control}
+                                      rules={{ required: "Produit est requis" }}
+                                      render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                          <SelectTrigger className="border-muted h-9">
+                                            <SelectValue placeholder="Sélectionner un produit" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {produits.map((produit) => (
+                                              <SelectItem key={produit.id} value={produit.id}>
+                                                {produit.nom}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
+                                    />
+                                    {errors.lignes?.[index]?.produit && (
+                                      <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.produit?.message}</p>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-2 text-center">
+                                    <Input
+                                      type="number"
+                                      {...register(`lignes.${index}.quantite_demandee`, {
+                                        required: "Quantité demandée est requise",
+                                        min: { value: 1, message: "Quantité doit être positive" },
+                                        valueAsNumber: true,
+                                      })}
+                                      className="border-muted focus:ring-primary h-9 text-center"
+                                    />
+                                    {errors.lignes?.[index]?.quantite_demandee && (
+                                      <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.quantite_demandee?.message}</p>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-2 text-center">
+                                    <Input
+                                      type="number"
+                                      {...register(`lignes.${index}.quantite_expediee`, {
+                                        min: { value: 0, message: "Quantité expédiée ne peut pas être négative" },
+                                        valueAsNumber: true,
+                                      })}
+                                      className="border-muted focus:ring-primary h-9 text-center"
+                                    />
+                                    {errors.lignes?.[index]?.quantite_expediee && (
+                                      <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.quantite_expediee?.message}</p>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <div className="flex items-center space-x-2">
+                                      <Input
+                                        type="number"
+                                        {...register(`lignes.${index}.quantite_recue`, {
+                                          min: { value: 0, message: "Quantité reçue ne peut pas être négative" },
+                                          valueAsNumber: true,
+                                        })}
+                                        className="border-muted focus:ring-primary h-9"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => remove(index)}
+                                        className="hover:bg-destructive/10 h-9 w-9"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </div>
+                                    {errors.lignes?.[index]?.quantite_recue && (
+                                      <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.quantite_recue?.message}</p>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => append({ produit: "", quantite_demandee: 1, quantite_expediee: 0, quantite_recue: 0 })}
+                          className="mt-4 ml-4"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Ajouter Article
+                        </Button>
                       </div>
                     </div>
                     <div className="flex justify-end space-x-2">
@@ -396,15 +679,15 @@ export default function StockPage() {
                       </Button>
                       <Button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || createTransfert.isLoading}
                         className="bg-primary hover:bg-primary/90"
                       >
-                        {loading ? (
+                        {loading || createTransfert.isLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
                           <Plus className="h-4 w-4 mr-2" />
                         )}
-                        {loading ? "Création..." : "Ajouter Stock"}
+                        {loading || createTransfert.isLoading ? "Création..." : "Créer Transfert"}
                       </Button>
                     </div>
                   </form>
@@ -420,34 +703,20 @@ export default function StockPage() {
                 <div className="relative flex-1 min-w-64">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Rechercher des produits..."
+                    placeholder="Rechercher des transferts..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 border-muted focus:ring-primary rounded-lg"
                   />
                 </div>
-                <Select value={selectedStore} onValueChange={setSelectedStore}>
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                   <SelectTrigger className="w-48 border-muted">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les Points de Vente</SelectItem>
-                    {pointsVente.map((pv) => (
-                      <SelectItem key={pv.id} value={pv.nom}>
-                        {pv.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-48 border-muted">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les Catégories</SelectItem>
-                    {[...new Set(produits.map((p) => p.categorie))].map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -460,122 +729,99 @@ export default function StockPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="relative overflow-hidden bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/10 hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-300">Produits Totaux</CardTitle>
+                <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-300">Transferts Totaux</CardTitle>
                 <Package className="h-5 w-5 text-blue-500 dark:text-blue-400" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-blue-800 dark:text-blue-200 animate-pulse">
-                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : totalProducts}
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : transferts.length}
                 </div>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">À travers tous les points de vente</p>
               </CardContent>
             </Card>
-            <Card className="relative overflow-hidden bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-900/10 hover:shadow-lg transition-shadow duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-red-700 dark:text-red-300">Articles en Faible Stock</CardTitle>
-                <AlertTriangle className="h-5 w-5 text-red-500 dark:text-red-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-800 dark:text-red-200 animate-pulse">
-                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : lowStockItems}
-                </div>
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Nécessitent une attention</p>
-              </CardContent>
-            </Card>
             <Card className="relative overflow-hidden bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-900/10 hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">Articles Réservés</CardTitle>
+                <CardTitle className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">Transferts en Attente</CardTitle>
                 <Package className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-yellow-800 dark:text-yellow-200 animate-pulse">
-                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : reservedItems}
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : transferts.filter(t => t.status === 'pending').length}
                 </div>
-                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Commandes en attente</p>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">En attente de validation</p>
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-900/10 hover:shadow-lg transition-shadow duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-semibold text-green-700 dark:text-green-300">Transferts Reçus</CardTitle>
+                <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-green-800 dark:text-green-200 animate-pulse">
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : transferts.filter(t => t.status === 'received').length}
+                </div>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">Transferts complétés</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Stock Table */}
+          {/* Transferts Table */}
           <Card className="bg-background/95 backdrop-blur-sm shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl font-semibold text-foreground">Niveaux de Stock Actuels</CardTitle>
-              <p className="text-sm text-muted-foreground">Gérer l'inventaire des produits</p>
+              <CardTitle className="text-2xl font-semibold text-foreground">Transferts de Stock</CardTitle>
+              <p className="text-sm text-muted-foreground">Gérer les transferts entre points de vente</p>
             </CardHeader>
             <CardContent>
               {error && (
                 <p className="text-sm text-destructive mb-4 flex items-center">
                   <AlertTriangle className="h-4 w-4 mr-2" />
-                  {error}
+                  {error.message}
                 </p>
               )}
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-muted/50">
-                    <TableHead className="text-foreground font-semibold">Produit</TableHead>
-                    <TableHead className="text-foreground font-semibold">Catégorie</TableHead>
-                    <TableHead className="text-foreground font-semibold">Point de Vente</TableHead>
-                    <TableHead className="text-foreground font-semibold">Disponible</TableHead>
-                    <TableHead className="text-foreground font-semibold">Réservé</TableHead>
-                    <TableHead className="text-foreground font-semibold">Min/Max</TableHead>
-                    <TableHead className="text-foreground font-semibold">Dernier Mouvement</TableHead>
+                    <TableHead className="text-foreground font-semibold">Numéro Transfert</TableHead>
+                    <TableHead className="text-foreground font-semibold">Source</TableHead>
+                    <TableHead className="text-foreground font-semibold">Destination</TableHead>
                     <TableHead className="text-foreground font-semibold">Statut</TableHead>
+                    <TableHead className="text-foreground font-semibold">Articles</TableHead>
+                    <TableHead className="text-foreground font-semibold">Demandeur</TableHead>
+                    <TableHead className="text-foreground font-semibold">Date Demande</TableHead>
                     <TableHead className="text-foreground font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading && stocks.length === 0 ? (
+                  {loading && transferts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-4">
+                      <TableCell colSpan={8} className="text-center py-4">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredStocks.map((stock) => {
-                      const produit = produits.find((p) => p.id === stock.produit)
-                      const pointVente = pointsVente.find((pv) => pv.id === stock.point_vente)
+                    filteredTransferts.map((transfert) => {
+                      const source = pointsVente.find((pv) => pv.id === transfert.point_vente_source)
+                      const destination = pointsVente.find((pv) => pv.id === transfert.point_vente_destination)
+                      const demandeur = utilisateurs.find((u) => u.id === transfert.demandeur)
                       return (
-                        <TableRow key={stock.id} className="hover:bg-muted/20 transition-colors">
+                        <TableRow key={transfert.id} className="hover:bg-muted/20 transition-colors">
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               <Package className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{produit?.nom || 'Inconnu'}</span>
+                              <span className="font-medium">{transfert.numero_transfert}</span>
                             </div>
                           </TableCell>
-                          <TableCell>{produit?.categorie || 'Inconnu'}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-1">
-                              <Store className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-sm">{pointVente?.nom || 'Inconnu'}</span>
-                            </div>
-                          </TableCell>
+                          <TableCell>{source?.nom || 'Inconnu'}</TableCell>
+                          <TableCell>{destination?.nom || 'Inconnu'}</TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
-                              <span className="font-medium">{stock.quantite_actuelle}</span>
-                              {stock.quantite_actuelle < (stock.minimum || 10) && (
-                                <AlertTriangle className="h-4 w-4 text-destructive" />
-                              )}
+                              {getStatusIcon(transfert.status)}
+                              {getStatusBadge(transfert.status)}
                             </div>
                           </TableCell>
-                          <TableCell>{stock.quantite_reservee}</TableCell>
-                          <TableCell>
-                            <span className="text-sm text-muted-foreground">
-                              {stock.minimum || 10} / {stock.maximum || 100}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-1 text-xs">
-                                <TrendingUp className="h-3 w-3 text-green-600" />
-                                <span>Entrée: {formatDate(stock.date_derniere_entree)}</span>
-                              </div>
-                              <div className="flex items-center space-x-1 text-xs">
-                                <TrendingDown className="h-3 w-3 text-red-600" />
-                                <span>Sortie: {formatDate(stock.date_derniere_sortie)}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(stock.quantite_actuelle, stock.minimum || 10)}</TableCell>
+                          <TableCell>{transfert.lignes?.length || 0} article{transfert.lignes?.length !== 1 ? 's' : ''}</TableCell>
+                          <TableCell>{demandeur?.username || 'Inconnu'}</TableCell>
+                          <TableCell>{formatDate(transfert.date_demande)}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
                               <Tooltip>
@@ -584,7 +830,7 @@ export default function StockPage() {
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => {
-                                      setSelectedStockId(stock.id)
+                                      setSelectedTransfertId(transfert.id!)
                                       setIsDetailModalOpen(true)
                                     }}
                                     className="hover:bg-primary/10"
@@ -594,48 +840,78 @@ export default function StockPage() {
                                 </TooltipTrigger>
                                 <TooltipContent>Voir les détails</TooltipContent>
                               </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleEditStock(stock)}
-                                    className="hover:bg-primary/10"
-                                  >
-                                    <Edit className="h-3 w-3 text-primary" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Modifier Stock</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setSelectedStockId(stock.id)
-                                      setIsAdjustModalOpen(true)
-                                    }}
-                                    className="hover:bg-primary/10"
-                                  >
-                                    <Package className="h-3 w-3 text-primary" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Ajuster Stock</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteStock(stock.id)}
-                                    className="hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Supprimer Stock</TooltipContent>
-                              </Tooltip>
+                              {transfert.status === 'pending' && (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleEditTransfert(transfert)}
+                                        className="hover:bg-primary/10"
+                                      >
+                                        <Edit className="h-3 w-3 text-primary" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Modifier Transfert</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleValidateTransfert(transfert.id!)}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                                      >
+                                        Valider
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Valider Transfert</TooltipContent>
+                                  </Tooltip>
+                                </>
+                              )}
+                              {transfert.status === 'validated' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleShipTransfert(transfert.id!)}
+                                      className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                                    >
+                                      Expédier
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Marquer comme Expédié</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {transfert.status === 'shipped' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleReceiveTransfert(transfert.id!)}
+                                      className="bg-green-500 hover:bg-green-600 text-white"
+                                    >
+                                      Recevoir
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Marquer comme Reçu</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {transfert.status === 'pending' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteTransfert(transfert.id!)}
+                                      className="hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-3 w-3 text-destructive" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Supprimer Transfert</TooltipContent>
+                                </Tooltip>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -647,130 +923,299 @@ export default function StockPage() {
             </CardContent>
           </Card>
 
-          {/* Edit Stock Modal */}
+          {/* Edit Transfert Modal */}
           <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-sm rounded-lg shadow-xl">
+            <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw', minWidth: '70vw' }}>
               <DialogHeader>
-                <DialogTitle>Modifier Stock</DialogTitle>
-                <DialogDescription>Mettre à jour les détails du stock.</DialogDescription>
+                <DialogTitle>Modifier Transfert de Stock</DialogTitle>
+                <DialogDescription>Mettre à jour les détails du transfert et ses articles.</DialogDescription>
               </DialogHeader>
-              <form onSubmit={stockForm.handleSubmit(handleCreateOrUpdateStock)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="produit" className="text-sm font-medium">Produit</Label>
-                  <Controller
-                    name="produit"
-                    control={stockForm.control}
-                    rules={{ required: "Produit est requis" }}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="border-muted">
-                          <SelectValue placeholder="Sélectionner un produit" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {produits.map((produit) => (
-                            <SelectItem key={produit.id} value={produit.id}>
-                              {produit.nom} ({produit.categorie})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {stockForm.formState.errors.produit && (
-                    <p className="text-sm text-destructive">{stockForm.formState.errors.produit.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="point_vente" className="text-sm font-medium">Point de vente</Label>
-                  <Controller
-                    name="point_vente"
-                    control={stockForm.control}
-                    rules={{ required: "Point de vente est requis" }}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="border-muted">
-                          <SelectValue placeholder="Sélectionner un point de vente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {pointsVente.map((pv) => (
-                            <SelectItem key={pv.id} value={pv.id}>
-                              {pv.nom}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {stockForm.formState.errors.point_vente && (
-                    <p className="text-sm text-destructive">{stockForm.formState.errors.point_vente.message}</p>
-                  )}
-                </div>
+              <form onSubmit={handleSubmit(handleCreateOrUpdateTransfert)} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="quantite_actuelle" className="text-sm font-medium">Quantité Actuelle</Label>
+                    <Label htmlFor="numero_transfert" className="text-sm font-medium">Numéro de Transfert</Label>
                     <Input
-                      id="quantite_actuelle"
-                      type="number"
-                      {...stockForm.register("quantite_actuelle", {
-                        required: "Quantité actuelle est requise",
-                        min: { value: 0, message: "Quantité ne peut pas être négative" },
-                      })}
-                      placeholder="0"
+                      id="numero_transfert"
+                      {...register("numero_transfert", { required: "Numéro de transfert est requis" })}
+                      placeholder="Entrez le numéro de transfert"
                       className="border-muted focus:ring-primary"
                     />
-                    {stockForm.formState.errors.quantite_actuelle && (
-                      <p className="text-sm text-destructive">{stockForm.formState.errors.quantite_actuelle.message}</p>
+                    {errors.numero_transfert && (
+                      <p className="text-sm text-destructive">{errors.numero_transfert.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="quantite_reservee" className="text-sm font-medium">Quantité Réservée</Label>
-                    <Input
-                      id="quantite_reservee"
-                      type="number"
-                      {...stockForm.register("quantite_reservee", {
-                        required: "Quantité réservée est requise",
-                        min: { value: 0, message: "Quantité ne peut pas être négative" },
-                      })}
-                      placeholder="0"
-                      className="border-muted focus:ring-primary"
+                    <Label htmlFor="status" className="text-sm font-medium">Statut</Label>
+                    <Controller
+                      name="status"
+                      control={control}
+                      rules={{ required: "Statut est requis" }}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="border-muted">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.slice(1).map((status) => (
+                              <SelectItem key={status.value} value={status.value}>
+                                {status.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
-                    {stockForm.formState.errors.quantite_reservee && (
-                      <p className="text-sm text-destructive">{stockForm.formState.errors.quantite_reservee.message}</p>
+                    {errors.status && (
+                      <p className="text-sm text-destructive">{errors.status.message}</p>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="minimum" className="text-sm font-medium">Quantité Minimum</Label>
-                    <Input
-                      id="minimum"
-                      type="number"
-                      {...stockForm.register("minimum", {
-                        required: "Quantité minimum est requise",
-                        min: { value: 1, message: "Minimum doit être au moins 1" },
-                      })}
-                      placeholder="10"
-                      className="border-muted focus:ring-primary"
+                    <Label htmlFor="point_vente_source" className="text-sm font-medium">Point de Vente Source</Label>
+                    <Controller
+                      name="point_vente_source"
+                      control={control}
+                      rules={{ required: "Point de vente source est requis" }}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="border-muted">
+                            <SelectValue placeholder="Sélectionner un point de vente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {pointsVente.map((pv) => (
+                              <SelectItem key={pv.id} value={pv.id}>
+                                {pv.nom}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
-                    {stockForm.formState.errors.minimum && (
-                      <p className="text-sm text-destructive">{stockForm.formState.errors.minimum.message}</p>
+                    {errors.point_vente_source && (
+                      <p className="text-sm text-destructive">{errors.point_vente_source.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="maximum" className="text-sm font-medium">Quantité Maximum</Label>
+                    <Label htmlFor="point_vente_destination" className="text-sm font-medium">Point de Vente Destination</Label>
+                    <Controller
+                      name="point_vente_destination"
+                      control={control}
+                      rules={{ required: "Point de vente destination est requis" }}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="border-muted">
+                            <SelectValue placeholder="Sélectionner un point de vente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {pointsVente.map((pv) => (
+                              <SelectItem key={pv.id} value={pv.id}>
+                                {pv.nom}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.point_vente_destination && (
+                      <p className="text-sm text-destructive">{errors.point_vente_destination.message}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="demandeur" className="text-sm font-medium">Demandeur</Label>
+                    <Controller
+                      name="demandeur"
+                      control={control}
+                      rules={{ required: "Demandeur est requis" }}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="border-muted">
+                            <SelectValue placeholder="Sélectionner un demandeur" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {utilisateurs.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.username}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.demandeur && (
+                      <p className="text-sm text-destructive">{errors.demandeur.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="validateur" className="text-sm font-medium">Validateur</Label>
+                    <Controller
+                      name="validateur"
+                      control={control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="border-muted">
+                            <SelectValue placeholder="Sélectionner un validateur" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {utilisateurs.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.username}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date_validation" className="text-sm font-medium">Date de Validation</Label>
                     <Input
-                      id="maximum"
-                      type="number"
-                      {...stockForm.register("maximum", {
-                        required: "Quantité maximum est requise",
-                        min: { value: 1, message: "Maximum doit être au moins 1" },
-                      })}
-                      placeholder="100"
+                      id="date_validation"
+                      type="date"
+                      {...register("date_validation")}
                       className="border-muted focus:ring-primary"
                     />
-                    {stockForm.formState.errors.maximum && (
-                      <p className="text-sm text-destructive">{stockForm.formState.errors.maximum.message}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date_expedition" className="text-sm font-medium">Date d'Expédition</Label>
+                    <Input
+                      id="date_expedition"
+                      type="date"
+                      {...register("date_expedition")}
+                      className="border-muted focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date_reception" className="text-sm font-medium">Date de Réception</Label>
+                  <Input
+                    id="date_reception"
+                    type="date"
+                    {...register("date_reception")}
+                    className="border-muted focus:ring-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="commentaire" className="text-sm font-medium">Commentaire</Label>
+                  <Textarea
+                    id="commentaire"
+                    {...register("commentaire")}
+                    placeholder="Commentaires sur le transfert"
+                    className="border-muted focus:ring-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Articles du Transfert</Label>
+                  <div className="border rounded-lg bg-background/95">
+                    {fields.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Aucun article ajouté</p>
+                    ) : (
+                      <Table className="w-full">
+                        <TableHeader>
+                          <TableRow className="hover:bg-muted/50">
+                            <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Demandée</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Expédiée</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Reçue</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {fields.map((field, index) => (
+                            <TableRow key={field.id} className="hover:bg-muted/20">
+                              <TableCell className="py-2">
+                                <Controller
+                                  name={`lignes.${index}.produit`}
+                                  control={control}
+                                  rules={{ required: "Produit est requis" }}
+                                  render={({ field }) => (
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <SelectTrigger className="border-muted h-9">
+                                        <SelectValue placeholder="Sélectionner un produit" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {produits.map((produit) => (
+                                          <SelectItem key={produit.id} value={produit.id}>
+                                            {produit.nom}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                />
+                                {errors.lignes?.[index]?.produit && (
+                                  <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.produit?.message}</p>
+                                )}
+                              </TableCell>
+                              <TableCell className="py-2 text-center">
+                                <Input
+                                  type="number"
+                                  {...register(`lignes.${index}.quantite_demandee`, {
+                                    required: "Quantité demandée est requise",
+                                    min: { value: 1, message: "Quantité doit être positive" },
+                                    valueAsNumber: true,
+                                  })}
+                                  className="border-muted focus:ring-primary h-9 text-center"
+                                />
+                                {errors.lignes?.[index]?.quantite_demandee && (
+                                  <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.quantite_demandee?.message}</p>
+                                )}
+                              </TableCell>
+                              <TableCell className="py-2 text-center">
+                                <Input
+                                  type="number"
+                                  {...register(`lignes.${index}.quantite_expediee`, {
+                                    min: { value: 0, message: "Quantité expédiée ne peut pas être négative" },
+                                    valueAsNumber: true,
+                                  })}
+                                  className="border-muted focus:ring-primary h-9 text-center"
+                                />
+                                {errors.lignes?.[index]?.quantite_expediee && (
+                                  <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.quantite_expediee?.message}</p>
+                                )}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <div className="flex items-center space-x-2">
+                                  <Input
+                                    type="number"
+                                    {...register(`lignes.${index}.quantite_recue`, {
+                                      min: { value: 0, message: "Quantité reçue ne peut pas être négative" },
+                                      valueAsNumber: true,
+                                    })}
+                                    className="border-muted focus:ring-primary h-9"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => remove(index)}
+                                    className="hover:bg-destructive/10 h-9 w-9"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                                {errors.lignes?.[index]?.quantite_recue && (
+                                  <p className="text-xs text-destructive mt-1">{errors.lignes[index]?.quantite_recue?.message}</p>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => append({ produit: "", quantite_demandee: 1, quantite_expediee: 0, quantite_recue: 0 })}
+                      className="mt-4 ml-4"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Ajouter Article
+                    </Button>
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2">
@@ -784,179 +1229,141 @@ export default function StockPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || updateTransfert.isLoading}
                     className="bg-primary hover:bg-primary/90"
                   >
-                    {loading ? (
+                    {loading || updateTransfert.isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
                       <Edit className="h-4 w-4 mr-2" />
                     )}
-                    {loading ? "Mise à jour..." : "Mettre à jour Stock"}
+                    {loading || updateTransfert.isLoading ? "Mise à jour..." : "Mettre à jour Transfert"}
                   </Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
 
-          {/* Adjust Stock Modal */}
-          <Dialog open={isAdjustModalOpen} onOpenChange={setIsAdjustModalOpen}>
-            <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-sm rounded-lg shadow-xl">
-              <DialogHeader>
-                <DialogTitle>Ajustement de Stock</DialogTitle>
-                <DialogDescription>Ajuster la quantité de stock pour le produit sélectionné.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={adjustForm.handleSubmit(handleAdjustment)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="type" className="text-sm font-medium">Type d'Ajustement</Label>
-                  <Controller
-                    name="type"
-                    control={adjustForm.control}
-                    rules={{ required: "Type d'ajustement est requis" }}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="border-muted">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="adjustment">Ajustement Manuel</SelectItem>
-                          <SelectItem value="damage">Dommage/Perte</SelectItem>
-                          <SelectItem value="found">Stock Trouvé</SelectItem>
-                          <SelectItem value="expired">Articles Expirés</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {adjustForm.formState.errors.type && (
-                    <p className="text-sm text-destructive">{adjustForm.formState.errors.type.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="quantity" className="text-sm font-medium">Changement de Quantité</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    {...adjustForm.register("quantity", {
-                      required: "Quantité est requise",
-                      validate: (value) => value !== 0 || "Quantité ne peut pas être zéro",
-                    })}
-                    placeholder="Entrez un nombre positif ou négatif"
-                    className="border-muted focus:ring-primary"
-                  />
-                  {adjustForm.formState.errors.quantity && (
-                    <p className="text-sm text-destructive">{adjustForm.formState.errors.quantity.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reason" className="text-sm font-medium">Raison</Label>
-                  <Textarea
-                    id="reason"
-                    {...adjustForm.register("reason", { required: "Raison est requise" })}
-                    placeholder="Expliquez la raison de l'ajustement"
-                    className="border-muted focus:ring-primary"
-                  />
-                  {adjustForm.formState.errors.reason && (
-                    <p className="text-sm text-destructive">{adjustForm.formState.errors.reason.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reference" className="text-sm font-medium">Référence</Label>
-                  <Input
-                    id="reference"
-                    {...adjustForm.register("reference")}
-                    placeholder="Numéro de référence ou document"
-                    className="border-muted focus:ring-primary"
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={() => setIsAdjustModalOpen(false)}
-                    className="border-muted hover:bg-muted"
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Package className="h-4 w-4 mr-2" />
-                    )}
-                    {loading ? "Ajustement..." : "Appliquer l'Ajustement"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Detail Stock Modal */}
+          {/* Detail Transfert Modal */}
           <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-            <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-sm rounded-lg shadow-xl">
+            <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw', minWidth: '70vw' }}>
               <DialogHeader>
-                <DialogTitle>Détails du Stock</DialogTitle>
-                <DialogDescription>Voir les informations détaillées du stock.</DialogDescription>
+                <DialogTitle>Détails du Transfert de Stock</DialogTitle>
+                <DialogDescription>Visualiser les détails du transfert sélectionné.</DialogDescription>
               </DialogHeader>
-              {selectedStockId && (
-                (() => {
-                  const stock = stocks.find((s) => s.id === selectedStockId)
-                  const produit = produits.find((p) => p.id === stock?.produit)
-                  const pointVente = pointsVente.find((pv) => pv.id === stock?.point_vente)
-                  return (
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-sm font-medium">Produit</Label>
-                        <p className="text-sm text-foreground">{produit?.nom || 'Inconnu'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Catégorie</Label>
-                        <p className="text-sm text-foreground">{produit?.categorie || 'Inconnu'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Point de Vente</Label>
-                        <p className="text-sm text-foreground">{pointVente?.nom || 'Inconnu'}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium">Quantité Actuelle</Label>
-                          <p className="text-sm text-foreground">{stock?.quantite_actuelle}</p>
+              {selectedTransfertId && (
+                <div className="space-y-6">
+                  {(() => {
+                    const transfert = transferts.find((t) => t.id === selectedTransfertId)
+                    if (!transfert) return <p>Transfert non trouvé</p>
+                    const source = pointsVente.find((pv) => pv.id === transfert.point_vente_source)
+                    const destination = pointsVente.find((pv) => pv.id === transfert.point_vente_destination)
+                    const demandeur = utilisateurs.find((u) => u.id === transfert.demandeur)
+                    const validateur = utilisateurs.find((u) => u.id === transfert.validateur)
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Numéro de Transfert</Label>
+                            <p className="text-sm">{transfert.numero_transfert}</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Statut</Label>
+                            <div className="flex items-center space-x-2">
+                              {getStatusIcon(transfert.status)}
+                              {getStatusBadge(transfert.status)}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <Label className="text-sm font-medium">Quantité Réservée</Label>
-                          <p className="text-sm text-foreground">{stock?.quantite_reservee}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Point de Vente Source</Label>
+                            <p className="text-sm">{source?.nom || 'Inconnu'}</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Point de Vente Destination</Label>
+                            <p className="text-sm">{destination?.nom || 'Inconnu'}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium">Quantité Minimum</Label>
-                          <p className="text-sm text-foreground">{stock?.minimum || 10}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Demandeur</Label>
+                            <p className="text-sm">{demandeur?.username || 'Inconnu'}</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Validateur</Label>
+                            <p className="text-sm">{validateur?.username || 'Non défini'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <Label className="text-sm font-medium">Quantité Maximum</Label>
-                          <p className="text-sm text-foreground">{stock?.maximum || 100}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Date de Demande</Label>
+                            <p className="text-sm">{formatDate(transfert.date_demande)}</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Date de Validation</Label>
+                            <p className="text-sm">{formatDate(transfert.date_validation)}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium">Dernière Entrée</Label>
-                          <p className="text-sm text-foreground">{formatDate(stock?.date_derniere_entree || '')}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Date d'Expédition</Label>
+                            <p className="text-sm">{formatDate(transfert.date_expedition)}</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Date de Réception</Label>
+                            <p className="text-sm">{formatDate(transfert.date_reception)}</p>
+                          </div>
                         </div>
-                        <div>
-                          <Label className="text-sm font-medium">Dernière Sortie</Label>
-                          <p className="text-sm text-foreground">{formatDate(stock?.date_derniere_sortie || '')}</p>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Commentaire</Label>
+                          <p className="text-sm">{transfert.commentaire || 'Aucun commentaire'}</p>
                         </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Statut</Label>
-                        <p className="text-sm text-foreground">{getStatusBadge(stock?.quantite_actuelle || 0, stock?.minimum || 10)}</p>
-                      </div>
-                    </div>
-                  )
-                })()
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Articles du Transfert</Label>
+                          {loadingTransfertDetails ? (
+                            <p className="text-sm text-center">Chargement des articles...</p>
+                          ) : !transfertDetails?.lignes || transfertDetails.lignes.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center">Aucun article</p>
+                          ) : (
+                            <Table className="w-full">
+                              <TableHeader>
+                                <TableRow className="hover:bg-muted/50">
+                                  <TableHead className="text-foreground font-semibold">Produit</TableHead>
+                                  <TableHead className="text-foreground font-semibold text-center">Qté Demandée</TableHead>
+                                  <TableHead className="text-foreground font-semibold text-center">Qté Expédiée</TableHead>
+                                  <TableHead className="text-foreground font-semibold text-center">Qté Reçue</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {transfertDetails.lignes.map((ligne) => {
+                                  const produit = produits.find((p) => p.id === ligne.produit)
+                                  return (
+                                    <TableRow key={ligne.id} className="hover:bg-muted/20">
+                                      <TableCell>{produit?.nom || 'Inconnu'}</TableCell>
+                                      <TableCell className="text-center">{ligne.quantite_demandee}</TableCell>
+                                      <TableCell className="text-center">{ligne.quantite_expediee}</TableCell>
+                                      <TableCell className="text-center">{ligne.quantite_recue}</TableCell>
+                                    </TableRow>
+                                  )
+                                })}
+                              </TableBody>
+                            </Table>
+                          )}
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsDetailModalOpen(false)}
+                            className="border-muted hover:bg-muted"
+                          >
+                            Fermer
+                          </Button>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
               )}
             </DialogContent>
           </Dialog>
