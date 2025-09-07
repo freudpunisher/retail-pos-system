@@ -800,286 +800,303 @@ export default function PurchaseOrdersPage() {
           </Card>
 
          {/* Add Order Modal */}
-          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 transition-colors">
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle Commande
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[95vh] overflow-y-auto p-8"
-  style={{ 
-    width: '70vw', 
-    maxWidth: '70vw',
-    minWidth: '70vw'
-  }}>
-              <DialogHeader>
-                <DialogTitle>Créer une Commande Fournisseur</DialogTitle>
-                <DialogDescription>Ajouter une nouvelle commande avec ses articles.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit(handleCreateOrUpdateOrder)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="numero_commande" className="text-sm font-medium">Numéro de Commande</Label>
-                    <Input
-                      id="numero_commande"
-                      {...register("numero_commande", { required: "Numéro de commande est requis" })}
-                      placeholder="Entrez le numéro de commande"
-                      className="border-muted focus:ring-primary"
-                    />
-                    {errors.numero_commande && (
-                      <p className="text-sm text-destructive">{errors.numero_commande.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status" className="text-sm font-medium">Statut</Label>
-                    <Controller
-                      name="status"
-                      control={control}
-                      rules={{ required: "Statut est requis" }}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger className="border-muted">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.slice(1).map((status) => (
-                              <SelectItem key={status.value} value={status.value}>
-                                {status.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+<Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+  <DialogTrigger asChild>
+    {/* <Button className="bg-primary hover:bg-primary/90 transition-colors">
+      <Plus className="h-4 w-4 mr-2" />
+      Nouvelle Commande
+    </Button> */}
+  </DialogTrigger>
+  <DialogContent
+    className="max-h-[95vh] overflow-y-auto p-8"
+    style={{
+      width: '70vw',
+      maxWidth: '70vw',
+      minWidth: '70vw',
+    }}
+  >
+    <DialogHeader>
+      <DialogTitle>Créer une Commande Fournisseur</DialogTitle>
+      <DialogDescription>Ajouter une nouvelle commande avec ses articles.</DialogDescription>
+    </DialogHeader>
+    <form onSubmit={handleSubmit(handleCreateOrUpdateOrder)} className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="numero_commande" className="text-sm font-medium">Numéro de Commande</Label>
+          <Input
+            id="numero_commande"
+            {...register("numero_commande", { required: "Numéro de commande est requis" })}
+            placeholder="Entrez le numéro de commande"
+            className="border-muted focus:ring-primary"
+          />
+          {errors.numero_commande && (
+            <p className="text-sm text-destructive">{errors.numero_commande.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="status" className="text-sm font-medium">Statut</Label>
+          <Controller
+            name="status"
+            control={control}
+            rules={{ required: "Statut est requis" }}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger className="border-muted">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.slice(1).map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.status && (
+            <p className="text-sm text-destructive">{errors.status.message}</p>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="fournisseur" className="text-sm font-medium">Fournisseur</Label>
+          <Controller
+            name="fournisseur"
+            control={control}
+            rules={{ required: "Fournisseur est requis" }}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger className="border-muted">
+                  <SelectValue placeholder="Sélectionner un fournisseur" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fournisseurs.map((fournisseur) => (
+                    <SelectItem key={fournisseur.id} value={fournisseur.id}>
+                      {fournisseur.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.fournisseur && (
+            <p className="text-sm text-destructive">{errors.fournisseur.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="point_vente" className="text-sm font-medium">Point de Vente</Label>
+          <Controller
+            name="point_vente"
+            control={control}
+            rules={{ required: "Point de vente est requis" }}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger className="border-muted">
+                  <SelectValue placeholder="Sélectionner un point de vente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pointsVente.map((pv) => (
+                    <SelectItem key={pv.id} value={pv.id}>
+                      {pv.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.point_vente && (
+            <p className="text-sm text-destructive">{errors.point_vente.message}</p>
+          )}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="date_livraison_prevue" className="text-sm font-medium">Date de Livraison Prévue</Label>
+        <Input
+          id="date_livraison_prevue"
+          type="date"
+          {...register("date_livraison_prevue", { required: "Date de livraison prévue est requise" })}
+          className="border-muted focus:ring-primary"
+        />
+        {errors.date_livraison_prevue && (
+          <p className="text-sm text-destructive">{errors.date_livraison_prevue.message}</p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="utilisateur" className="text-sm font-medium">Utilisateur</Label>
+        <Controller
+          name="utilisateur"
+          control={control}
+          rules={{ required: "Utilisateur est requis" }}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Sélectionner un utilisateur" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {errors.utilisateur && (
+          <p className="text-sm text-destructive">{errors.utilisateur.message}</p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="commentaire" className="text-sm font-medium">Commentaire</Label>
+        <Textarea
+          id="commentaire"
+          {...register("commentaire")}
+          placeholder="Commentaires sur la commande"
+          className="border-muted focus:ring-primary"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Articles de la Commande</Label>
+        <div className="border rounded-lg bg-background/95">
+          {fields.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Aucun article ajouté</p>
+          ) : (
+            <Table className="w-full">
+              <TableHeader>
+                <TableRow className="hover:bg-muted/50">
+                  <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
+                  <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Commandée</TableHead>
+                  <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Reçue</TableHead>
+                  <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Unitaire (FBU)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fields.map((field, index) => (
+                  <TableRow key={field.id} className="hover:bg-muted/20">
+                    <TableCell className="py-2">
+                      <Controller
+                        name={`items.${index}.produit`}
+                        control={control}
+                        rules={{ required: "Produit est requis" }}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger className="border-muted h-9">
+                              <SelectValue placeholder="Sélectionner un produit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {produits.map((produit) => (
+                                <SelectItem key={produit.id} value={produit.id}>
+                                  {produit.nom}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.items?.[index]?.produit && (
+                        <p className="text-xs text-destructive mt-1">{errors.items[index]?.produit?.message}</p>
                       )}
-                    />
-                    {errors.status && (
-                      <p className="text-sm text-destructive">{errors.status.message}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fournisseur" className="text-sm font-medium">Fournisseur</Label>
-                    <Controller
-                      name="fournisseur"
-                      control={control}
-                      rules={{ required: "Fournisseur est requis" }}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger className="border-muted">
-                            <SelectValue placeholder="Sélectionner un fournisseur" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {fournisseurs.map((fournisseur) => (
-                              <SelectItem key={fournisseur.id} value={fournisseur.id}>
-                                {fournisseur.nom}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    </TableCell>
+                    <TableCell className="py-2 text-center">
+                      <Input
+                        type="number"
+                        placeholder="Qté"
+                        {...register(`items.${index}.quantite_commandee`, {
+                          required: "Quantité est requise",
+                          min: { value: 1, message: "Quantité doit être positive" },
+                          valueAsNumber: true,
+                        })}
+                        className="border-muted focus:ring-primary h-9 text-center"
+                      />
+                      {errors.items?.[index]?.quantite_commandee && (
+                        <p className="text-xs text-destructive mt-1">{errors.items[index]?.quantite_commandee?.message}</p>
                       )}
-                    />
-                    {errors.fournisseur && (
-                      <p className="text-sm text-destructive">{errors.fournisseur.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="point_vente" className="text-sm font-medium">Point de Vente</Label>
-                    <Controller
-                      name="point_vente"
-                      control={control}
-                      rules={{ required: "Point de vente est requis" }}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger className="border-muted">
-                            <SelectValue placeholder="Sélectionner un point de vente" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {pointsVente.map((pv) => (
-                              <SelectItem key={pv.id} value={pv.id}>
-                                {pv.nom}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    </TableCell>
+                    <TableCell className="py-2 text-center">
+                      <Input
+                        type="number"
+                        placeholder="Qté Reçue"
+                        {...register(`items.${index}.quantite_recue`, {
+                          min: { value: 0, message: "Quantité reçue ne peut pas être négative" },
+                          valueAsNumber: true,
+                        })}
+                        className="border-muted focus:ring-primary h-9 text-center"
+                      />
+                      {errors.items?.[index]?.quantite_recue && (
+                        <p className="text-xs text-destructive mt-1">{errors.items[index]?.quantite_recue?.message}</p>
                       )}
-                    />
-                    {errors.point_vente && (
-                      <p className="text-sm text-destructive">{errors.point_vente.message}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date_livraison_prevue" className="text-sm font-medium">Date de Livraison Prévue</Label>
-                  <Input
-                    id="date_livraison_prevue"
-                    type="date"
-                    {...register("date_livraison_prevue", { required: "Date de livraison prévue est requise" })}
-                    className="border-muted focus:ring-primary"
-                  />
-                  {errors.date_livraison_prevue && (
-                    <p className="text-sm text-destructive">{errors.date_livraison_prevue.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="utilisateur" className="text-sm font-medium">Utilisateur</Label>
-                  <Controller
-                    name="utilisateur"
-                    control={control}
-                    rules={{ required: "Utilisateur est requis" }}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="border-muted">
-                          <SelectValue placeholder="Sélectionner un utilisateur" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.nom}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {errors.utilisateur && (
-                    <p className="text-sm text-destructive">{errors.utilisateur.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="commentaire" className="text-sm font-medium">Commentaire</Label>
-                  <Textarea
-                    id="commentaire"
-                    {...register("commentaire")}
-                    placeholder="Commentaires sur la commande"
-                    className="border-muted focus:ring-primary"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Articles de la Commande</Label>
-                  <div className="border rounded-lg p-4 overflow-x-auto">
-                    {fields.length === 0 && (
-                      <p className="text-sm text-muted-foreground">Aucun article ajouté</p>
-                    )}
-                    <div className="grid grid-cols-4 gap-4 min-w-[800px]">
-                      <div className="font-medium">Produit</div>
-                      <div className="font-medium">Quantité Commandée</div>
-                      <div className="font-medium">Quantité Reçue</div>
-                      <div className="font-medium">Prix Unitaire (FBU)</div>
-                      {fields.map((field, index) => (
-                        <div key={field.id} className="grid grid-cols-4 gap-4 items-center">
-                          <div>
-                            <Controller
-                              name={`items.${index}.produit`}
-                              control={control}
-                              rules={{ required: "Produit est requis" }}
-                              render={({ field }) => (
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <SelectTrigger className="border-muted">
-                                    <SelectValue placeholder="Sélectionner un produit" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {produits.map((produit) => (
-                                      <SelectItem key={produit.id} value={produit.id}>
-                                        {produit.nom}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            />
-                            {errors.items?.[index]?.produit && (
-                              <p className="text-sm text-destructive">{errors.items[index]?.produit?.message}</p>
-                            )}
-                          </div>
-                          <div>
-                            <Input
-                              type="number"
-                              placeholder="Qté"
-                              {...register(`items.${index}.quantite_commandee`, {
-                                required: "Quantité est requise",
-                                min: { value: 1, message: "Quantité doit être positive" },
-                              })}
-                              className="border-muted focus:ring-primary"
-                            />
-                            {errors.items?.[index]?.quantite_commandee && (
-                              <p className="text-sm text-destructive">{errors.items[index]?.quantite_commandee?.message}</p>
-                            )}
-                          </div>
-                          <div>
-                            <Input
-                              type="number"
-                              placeholder="Qté Reçue"
-                              {...register(`items.${index}.quantite_recue`, {
-                                min: { value: 0, message: "Quantité reçue ne peut pas être négative" },
-                              })}
-                              className="border-muted focus:ring-primary"
-                            />
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Prix"
-                              {...register(`items.${index}.prix_unitaire`, {
-                                required: "Prix unitaire est requis",
-                                min: { value: 0, message: "Prix ne peut pas être négatif" },
-                              })}
-                              className="border-muted focus:ring-primary"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => remove(index)}
-                              className="hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                          {errors.items?.[index]?.prix_unitaire && (
-                            <p className="text-sm text-destructive col-span-4">{errors.items[index]?.prix_unitaire?.message}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
-                      className="mt-4"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Ajouter Article
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={() => setIsAddModalOpen(false)}
-                    className="border-muted hover:bg-muted"
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-2" />
-                    )}
-                    {loading ? "Ajout..." : "Créer Commande"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Prix"
+                          {...register(`items.${index}.prix_unitaire`, {
+                            required: "Prix unitaire est requis",
+                            min: { value: 0, message: "Prix ne peut pas être négatif" },
+                            valueAsNumber: true,
+                          })}
+                          className="border-muted focus:ring-primary h-9"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remove(index)}
+                          className="hover:bg-destructive/10 h-9 w-9"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      {errors.items?.[index]?.prix_unitaire && (
+                        <p className="text-xs text-destructive mt-1">{errors.items[index]?.prix_unitaire?.message}</p>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
+            className="mt-4 ml-4"
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Ajouter Article
+          </Button>
+        </div>
+      </div>
+      <div className="flex justify-end space-x-2">
+        <Button
+          variant="outline"
+          type="button"
+          onClick={() => setIsAddModalOpen(false)}
+          className="border-muted hover:bg-muted"
+        >
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="bg-primary hover:bg-primary/90"
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
+          {loading ? "Ajout..." : "Créer Commande"}
+        </Button>
+      </div>
+    </form>
+  </DialogContent>
+</Dialog>
 
           {/* Edit Order Modal */}
           <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
