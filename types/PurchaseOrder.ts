@@ -14,6 +14,15 @@ export interface PurchaseOrder {
 export interface PurchaseOrderResponse extends PurchaseOrder {
   // Additional fields from API response, if any
 }
+export interface lignes {
+  
+  quantite_commandee: number;
+  quantite_recue: number;
+  prix_unitaire: number; // In FBU
+  // montant_ligne: number; // In FBU
+   // UUID referencing PurchaseOrder
+  produit: string; // UUID referencing Produit
+}
 
 export interface CreatePurchaseOrderRequest {
   numero_commande: string;
@@ -23,6 +32,7 @@ export interface CreatePurchaseOrderRequest {
   fournisseur: string;
   point_vente: string;
   utilisateur: string;
+  lignes : lignes[];
 }
 
 export interface UpdatePurchaseOrderRequest {
