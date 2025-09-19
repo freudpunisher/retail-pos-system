@@ -15,7 +15,6 @@ import {
 
 export const usePurchaseOrders = () => {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderResponse[]>([]);
-  const [orderLines, setOrderLines] = useState<{ [commandeId: string]: OrderLine[] }>({});
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [pointsVente, setPointsVente] = useState<PointVente[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -36,18 +35,7 @@ export const usePurchaseOrders = () => {
     }
   }, []);
 
-  const fetchOrderLines = useCallback(async (commandeId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await PurchaseOrderService.getOrderLines(commandeId);
-      setOrderLines((prev) => ({ ...prev, [commandeId]: data }));
-    } catch (err) {
-      setError(`Failed to fetch order lines for commande ${commandeId}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // fetchOrderLines removed - using embedded lignes from purchase orders
 
   const fetchFournisseurs = useCallback(async () => {
     setLoading(true);
@@ -139,11 +127,6 @@ export const usePurchaseOrders = () => {
     try {
       await PurchaseOrderService.deletePurchaseOrder(id);
       setPurchaseOrders((prev) => prev.filter((order) => order.id !== id));
-      setOrderLines((prev) => {
-        const newLines = { ...prev };
-        delete newLines[id];
-        return newLines;
-      });
     } catch (err) {
       setError(`Failed to delete purchase order with id ${id}`);
       throw err;
@@ -152,62 +135,11 @@ export const usePurchaseOrders = () => {
     }
   }, []);
 
-  const createOrderLine = useCallback(async (lineData: CreateOrderLineRequest) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const newLine = await PurchaseOrderService.createOrderLine(lineData);
-      setOrderLines((prev) => ({
-        ...prev,
-        [lineData.commande]: [...(prev[lineData.commande] || []), newLine],
-      }));
-      return newLine;
-    } catch (err) {
-      setError('Failed to create order line');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const updateOrderLine = useCallback(async (id: string, lineData: UpdateOrderLineRequest, commandeId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const updatedLine = await PurchaseOrderService.updateOrderLine(id, lineData);
-      setOrderLines((prev) => ({
-        ...prev,
-        [commandeId]: prev[commandeId].map((line) => (line.id === id ? { ...line, ...updatedLine } : line)),
-      }));
-      return updatedLine;
-    } catch (err) {
-      setError(`Failed to update order line with id ${id}`);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const deleteOrderLine = useCallback(async (id: string, commandeId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await PurchaseOrderService.deleteOrderLine(id);
-      setOrderLines((prev) => ({
-        ...prev,
-        [commandeId]: prev[commandeId].filter((line) => line.id !== id),
-      }));
-    } catch (err) {
-      setError(`Failed to delete order line with id ${id}`);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Individual order line operations will be handled through purchase order updates
+  // since lignes are embedded in the purchase order
 
   return {
     purchaseOrders,
-    orderLines,
     fournisseurs,
     pointsVente,
     users,
@@ -215,7 +147,6 @@ export const usePurchaseOrders = () => {
     loading,
     error,
     fetchPurchaseOrders,
-    fetchOrderLines,
     fetchFournisseurs,
     fetchPointsVente,
     fetchUsers,
@@ -223,8 +154,5 @@ export const usePurchaseOrders = () => {
     createPurchaseOrder,
     updatePurchaseOrder,
     deletePurchaseOrder,
-    createOrderLine,
-    updateOrderLine,
-    deleteOrderLine,
   };
 };

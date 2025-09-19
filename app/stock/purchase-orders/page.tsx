@@ -30,6 +30,7 @@ import {
   FileText,
   Truck,
   CheckCircle,
+  CheckSquare,
   Package,
   User,
   Loader2,
@@ -77,7 +78,6 @@ const statusOptions = [
 export default function PurchaseOrdersPage() {
   const {
     purchaseOrders,
-    orderLines,
     fournisseurs,
     pointsVente,
     users,
@@ -85,7 +85,6 @@ export default function PurchaseOrdersPage() {
     loading,
     error,
     fetchPurchaseOrders,
-    fetchOrderLines,
     fetchFournisseurs,
     fetchPointsVente,
     fetchUsers,
@@ -93,9 +92,6 @@ export default function PurchaseOrdersPage() {
     createPurchaseOrder,
     updatePurchaseOrder,
     deletePurchaseOrder,
-    createOrderLine,
-    updateOrderLine,
-    deleteOrderLine,
   } = usePurchaseOrders()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStatus, setSelectedStatus] = useState("all")
@@ -106,7 +102,7 @@ export default function PurchaseOrdersPage() {
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null)
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null)
 
-  const { register, control, handleSubmit, reset, formState: { errors }, setValue } = useForm<PurchaseOrderFormData>({
+  const { register, control, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<PurchaseOrderFormData>({
     defaultValues: {
       numero_commande: "",
       status: "draft",
@@ -118,6 +114,17 @@ export default function PurchaseOrdersPage() {
       items: [],
     },
   })
+
+  const watchedItems = watch("items")
+
+  // Utility functions for calculations
+  const calculateLineTotal = (quantite: number, prix: number): number => {
+    return (quantite || 0) * (prix || 0)
+  }
+
+  const calculateOrderTotal = (items: Array<{ quantite_commandee?: number; prix_unitaire?: number }>): number => {
+    return items?.reduce((total, item) => total + calculateLineTotal(item?.quantite_commandee || 0, item?.prix_unitaire || 0), 0) || 0
+  }
 
   const { fields, append, remove, update } = useFieldArray({
     control,
@@ -134,7 +141,6 @@ export default function PurchaseOrdersPage() {
 
   useEffect(() => {
     if (selectedOrderId) {
-      fetchOrderLines(selectedOrderId)
       const order = purchaseOrders.find((po) => po.id === selectedOrderId)
       if (order) {
         reset({
@@ -145,7 +151,7 @@ export default function PurchaseOrdersPage() {
           fournisseur: order.fournisseur,
           point_vente: order.point_vente,
           utilisateur: order.utilisateur,
-          items: (orderLines[selectedOrderId] || []).map((line) => ({
+          items: (order.lignes || []).map((line) => ({
             id: line.id,
             produit: line.produit,
             quantite_commandee: line.quantite_commandee,
@@ -155,11 +161,10 @@ export default function PurchaseOrdersPage() {
         })
       }
     }
-  }, [selectedOrderId, orderLines, purchaseOrders, fetchOrderLines, reset])
+  }, [selectedOrderId, purchaseOrders, reset])
 
   useEffect(() => {
     if (editingOrderId) {
-      fetchOrderLines(editingOrderId)
       const order = purchaseOrders.find((po) => po.id === editingOrderId)
       if (order) {
         reset({
@@ -170,7 +175,7 @@ export default function PurchaseOrdersPage() {
           fournisseur: order.fournisseur,
           point_vente: order.point_vente,
           utilisateur: order.utilisateur,
-          items: (orderLines[editingOrderId] || []).map((line) => ({
+          items: (order.lignes || []).map((line) => ({
             id: line.id,
             produit: line.produit,
             quantite_commandee: line.quantite_commandee,
@@ -180,7 +185,7 @@ export default function PurchaseOrdersPage() {
         })
       }
     }
-  }, [editingOrderId, orderLines, purchaseOrders, fetchOrderLines, reset])
+  }, [editingOrderId, purchaseOrders, reset])
 
   const filteredPOs = purchaseOrders.filter((po) => {
     const fournisseur = fournisseurs.find((f) => f.id === po.fournisseur)
@@ -233,7 +238,7 @@ export default function PurchaseOrdersPage() {
   const handleCreateOrUpdateOrder = async (data: PurchaseOrderFormData, orderId?: string) => {
     try {
       const orderData: CreatePurchaseOrderRequest = {
-        numero_commande: data.numero_commande,
+      
         status: data.status,
         date_livraison_prevue: data.date_livraison_prevue,
         commentaire: data.commentaire,
@@ -241,51 +246,27 @@ export default function PurchaseOrdersPage() {
         point_vente: data.point_vente,
         utilisateur: data.utilisateur || "3a9d9fd3-5b7f-48b4-af7f-8eed0387d30f",
         lignes: data.items.map((item) => ({
+          id: item.id, // Include ID for updates
           quantite_commandee: item.quantite_commandee,
           quantite_recue: item.quantite_recue || 0,
           prix_unitaire: item.prix_unitaire,
           produit: item.produit,
         })),
       }
-      let order: PurchaseOrderResponse
+      
       const targetOrderId = orderId || editingOrderId
       if (targetOrderId) {
-        order = await updatePurchaseOrder(targetOrderId, orderData)
-        const existingLines = orderLines[targetOrderId] || []
-        const existingLineIds = existingLines.map((line) => line.id)
-        const submittedLineIds = data.items.filter((item) => item.id).map((item) => item.id)
-        const linesToDelete = existingLineIds.filter((id) => !submittedLineIds.includes(id))
-        for (const lineId of linesToDelete) {
-          await deleteOrderLine(lineId, targetOrderId)
-        }
-        for (const item of data.items) {
-          if (item.id) {
-            await updateOrderLine(item.id, {
-              quantite_commandee: item.quantite_commandee,
-              quantite_recue: item.quantite_recue,
-              prix_unitaire: item.prix_unitaire,
-              produit: item.produit,
-            }, targetOrderId)
-          } else {
-            await createOrderLine({
-              quantite_commandee: item.quantite_commandee,
-              quantite_recue: item.quantite_recue,
-              prix_unitaire: item.prix_unitaire,
-              produit: item.produit,
-              commande: targetOrderId,
-            })
-          }
-        }
+        await updatePurchaseOrder(targetOrderId, orderData)
         setEditingOrderId(null)
         setIsEditModalOpen(false)
         setIsDetailModalOpen(false)
       } else {
-        order = await createPurchaseOrder(orderData)
+        await createPurchaseOrder(orderData)
         setIsAddModalOpen(false)
       }
+      
       reset()
-      await fetchPurchaseOrders()
-      await fetchOrderLines(order.id)
+      await fetchPurchaseOrders() // This will refresh the data with embedded lignes
     } catch (err) {
       console.error(err)
     }
@@ -305,6 +286,20 @@ export default function PurchaseOrdersPage() {
     }
   }
 
+  const handleConfirmOrder = async (id: string) => {
+    const confirmed = window.confirm(
+      "Êtes-vous sûr de vouloir confirmer cette commande ? Cette action rendra la commande non modifiable."
+    )
+    if (!confirmed) return
+    
+    try {
+      await updatePurchaseOrder(id, { status: 'confirmed' })
+      await fetchPurchaseOrders()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const handleReceiveOrder = async (id: string) => {
     try {
       await updatePurchaseOrder(id, { status: 'received' })
@@ -318,45 +313,8 @@ export default function PurchaseOrdersPage() {
     setEditingItemIndex(index)
   }
 
-  const handleSaveItem = async (index: number, data: PurchaseOrderFormData) => {
-    if (!selectedOrderId) return
-    const item = data.items[index]
-    try {
-      if (item.id) {
-        await updateOrderLine(item.id, {
-          quantite_commandee: item.quantite_commandee,
-          quantite_recue: item.quantite_recue,
-          prix_unitaire: item.prix_unitaire,
-          produit: item.produit,
-        }, selectedOrderId)
-      } else {
-        await createOrderLine({
-          quantite_commandee: item.quantite_commandee,
-          quantite_recue: item.quantite_recue,
-          prix_unitaire: item.prix_unitaire,
-          produit: item.produit,
-          commande: selectedOrderId,
-        })
-      }
-      setEditingItemIndex(null)
-      await fetchOrderLines(selectedOrderId)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const handleDeleteItem = async (index: number, itemId?: string) => {
-    if (!selectedOrderId) return
-    try {
-      if (itemId) {
-        await deleteOrderLine(itemId, selectedOrderId)
-      }
-      remove(index)
-      await fetchOrderLines(selectedOrderId)
-    } catch (err) {
-      console.error(err)
-    }
-  }
+  // handleSaveItem and handleDeleteItem removed - using full form submission approach
+  // Individual item changes are handled through the main form submission
 
   if (loading && purchaseOrders.length === 0) {
     return (
@@ -451,18 +409,7 @@ export default function PurchaseOrdersPage() {
                   </DialogHeader>
                   <form onSubmit={handleSubmit((data) => handleCreateOrUpdateOrder(data))} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="numero_commande" className="text-sm font-medium">Numéro de Commande</Label>
-                        <Input
-                          id="numero_commande"
-                          {...register("numero_commande", { required: "Numéro de commande est requis" })}
-                          placeholder="Entrez le numéro de commande"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {errors.numero_commande && (
-                          <p className="text-sm text-destructive">{errors.numero_commande.message}</p>
-                        )}
-                      </div>
+                     
                       <div className="space-y-2">
                         <Label htmlFor="status" className="text-sm font-medium">Statut</Label>
                         <Controller
@@ -596,10 +543,12 @@ export default function PurchaseOrdersPage() {
                           <Table className="w-full">
                             <TableHeader>
                               <TableRow className="hover:bg-muted/50">
-                                <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
-                                <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Commandée</TableHead>
-                                <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Reçue</TableHead>
-                                <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Unitaire (FBU)</TableHead>
+                                <TableHead className="text-foreground font-semibold w-1/4">Produit</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-1/6">Qté Commandée</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-1/6">Qté Reçue</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-1/6">Prix Unit. (FBU)</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-1/6">Total Ligne (FBU)</TableHead>
+                                <TableHead className="text-foreground font-semibold text-center w-[100px]">Actions</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -658,48 +607,63 @@ export default function PurchaseOrdersPage() {
                                       <p className="text-xs text-destructive mt-1">{errors.items[index]?.quantite_recue?.message}</p>
                                     )}
                                   </TableCell>
-                                  <TableCell className="py-2">
-                                    <div className="flex items-center space-x-2">
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Prix"
-                                        {...register(`items.${index}.prix_unitaire`, {
-                                          required: "Prix unitaire est requis",
-                                          min: { value: 0, message: "Prix ne peut pas être négatif" },
-                                          valueAsNumber: true,
-                                        })}
-                                        className="border-muted focus:ring-primary h-9"
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => remove(index)}
-                                        className="hover:bg-destructive/10 h-9 w-9"
-                                      >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                    </div>
+                                  <TableCell className="py-2 text-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="Prix"
+                                      {...register(`items.${index}.prix_unitaire`, {
+                                        required: "Prix unitaire est requis",
+                                        min: { value: 0, message: "Prix ne peut pas être négatif" },
+                                        valueAsNumber: true,
+                                      })}
+                                      className="border-muted focus:ring-primary h-9 text-center"
+                                    />
                                     {errors.items?.[index]?.prix_unitaire && (
                                       <p className="text-xs text-destructive mt-1">{errors.items[index]?.prix_unitaire?.message}</p>
                                     )}
+                                  </TableCell>
+                                  <TableCell className="py-2 text-center">
+                                    <span className="font-medium text-primary">
+                                      {calculateLineTotal(watchedItems?.[index]?.quantite_commandee || 0, watchedItems?.[index]?.prix_unitaire || 0).toLocaleString()} FBU
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-2 text-center">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => remove(index)}
+                                      className="hover:bg-destructive/10 h-9 w-9"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
-                          className="mt-4 ml-4"
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Ajouter Article
-                        </Button>
+                        <div className="border-t pt-4 mt-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
+                              className="ml-4"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Ajouter Article
+                            </Button>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Total de la commande</p>
+                              <p className="text-lg font-bold text-primary">
+                                {calculateOrderTotal(watchedItems || []).toLocaleString()} FBU
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="flex justify-end space-x-2">
@@ -798,7 +762,7 @@ export default function PurchaseOrdersPage() {
                       const fournisseur = fournisseurs.find((f) => f.id === po.fournisseur)
                       const pointVente = pointsVente.find((pv) => pv.id === po.point_vente)
                       const user = users.find((u) => u.id === po.utilisateur)
-                      const itemsCount = (orderLines[po.id] || []).length
+                      const itemsCount = (po.lignes || []).length
                       return (
                         <TableRow key={po.id} className="hover:bg-muted/20 transition-colors">
                           <TableCell>
@@ -846,7 +810,7 @@ export default function PurchaseOrdersPage() {
                                 </TooltipTrigger>
                                 <TooltipContent>Voir les détails</TooltipContent>
                               </Tooltip>
-                              {po.status === 'draft' && (
+                              {(po.status === 'draft' || po.status === 'sent') && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -859,6 +823,21 @@ export default function PurchaseOrdersPage() {
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Modifier Commande</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {(po.status === 'draft' || po.status === 'sent') && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleConfirmOrder(po.id)}
+                                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                                    >
+                                      <CheckSquare className="h-3 w-3 mr-1" />
+                                      Confirmer
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Confirmer la Commande</TooltipContent>
                                 </Tooltip>
                               )}
                               {po.status === 'confirmed' && (
@@ -913,8 +892,23 @@ export default function PurchaseOrdersPage() {
             >
               <DialogHeader>
                 <DialogTitle>Détails de la Commande Fournisseur</DialogTitle>
-                <DialogDescription>Voir et modifier les détails de la commande et ses articles.</DialogDescription>
+                <DialogDescription>
+                  Voir et modifier les détails de la commande et ses articles.
+                  {(() => {
+                    const currentOrder = purchaseOrders.find((po) => po.id === selectedOrderId)
+                    return currentOrder?.status === 'confirmed' || currentOrder?.status === 'received' || currentOrder?.status === 'cancelled' ? (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+                        <AlertTriangle className="h-4 w-4 inline mr-2" />
+                        Cette commande est confirmée et ne peut plus être modifiée.
+                      </div>
+                    ) : null
+                  })()}
+                </DialogDescription>
               </DialogHeader>
+              {(() => {
+                const currentOrder = purchaseOrders.find((po) => po.id === selectedOrderId)
+                const isConfirmed = currentOrder?.status === 'confirmed' || currentOrder?.status === 'received' || currentOrder?.status === 'cancelled'
+                return (
               <form onSubmit={handleSubmit((data) => handleCreateOrUpdateOrder(data, selectedOrderId || undefined))} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1047,10 +1041,11 @@ export default function PurchaseOrdersPage() {
                       <Table className="w-full">
                         <TableHeader>
                           <TableRow className="hover:bg-muted/50">
-                            <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
-                            <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Commandée</TableHead>
-                            <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Reçue</TableHead>
-                            <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Unitaire (FBU)</TableHead>
+                            <TableHead className="text-foreground font-semibold w-1/4">Produit</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Qté Commandée</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Qté Reçue</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Prix Unit. (FBU)</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Total Ligne (FBU)</TableHead>
                             <TableHead className="text-foreground font-semibold text-center w-[100px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1151,37 +1146,46 @@ export default function PurchaseOrdersPage() {
                                 )}
                               </TableCell>
                               <TableCell className="py-2 text-center">
+                                <span className="font-medium text-primary">
+                                  {calculateLineTotal(field.quantite_commandee, field.prix_unitaire).toLocaleString()} FBU
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-2 text-center">
                                 <div className="flex justify-center space-x-2">
-                                  {editingItemIndex === index ? (
+                                  {!isConfirmed && (
+                                    editingItemIndex === index ? (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setEditingItemIndex(null)}
+                                        className="hover:bg-primary/10 h-9 w-9"
+                                      >
+                                        <Save className="h-4 w-4 text-primary" />
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleEditItem(index)}
+                                        className="hover:bg-primary/10 h-9 w-9"
+                                      >
+                                        <Edit className="h-4 w-4 text-primary" />
+                                      </Button>
+                                    )
+                                  )}
+                                  {!isConfirmed && (
                                     <Button
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => handleSubmit((data) => handleSaveItem(index, data))()}
-                                      className="hover:bg-primary/10 h-9 w-9"
+                                      onClick={() => remove(index)}
+                                      className="hover:bg-destructive/10 h-9 w-9"
                                     >
-                                      <Save className="h-4 w-4 text-primary" />
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleEditItem(index)}
-                                      className="hover:bg-primary/10 h-9 w-9"
-                                    >
-                                      <Edit className="h-4 w-4 text-primary" />
+                                      <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
                                   )}
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteItem(index, field.id)}
-                                    className="hover:bg-destructive/10 h-9 w-9"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -1189,16 +1193,28 @@ export default function PurchaseOrdersPage() {
                         </TableBody>
                       </Table>
                     )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
-                      className="mt-4 ml-4"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Ajouter Article
-                    </Button>
+                    <div className="border-t pt-4 mt-4">
+                      <div className="flex items-center justify-between mb-4">
+                        {!isConfirmed && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
+                            className="ml-4"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Ajouter Article
+                          </Button>
+                        )}
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Total de la commande</p>
+                          <p className="text-lg font-bold text-primary">
+                            {calculateOrderTotal(watchedItems || []).toLocaleString()} FBU
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2">
@@ -1213,20 +1229,24 @@ export default function PurchaseOrdersPage() {
                   >
                     Fermer
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    {loading ? "Enregistrement..." : "Enregistrer les modifications"}
-                  </Button>
+                  {!isConfirmed && (
+                    <Button
+                      type="submit"
+                      disabled={loading}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      {loading ? "Enregistrement..." : "Enregistrer les modifications"}
+                    </Button>
+                  )}
                 </div>
               </form>
+                )
+              })()}
             </DialogContent>
           </Dialog>
 
@@ -1391,10 +1411,12 @@ export default function PurchaseOrdersPage() {
                       <Table className="w-full">
                         <TableHeader>
                           <TableRow className="hover:bg-muted/50">
-                            <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
-                            <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Commandée</TableHead>
-                            <TableHead className="text-foreground font-semibold text-center w-1/5">Quantité Reçue</TableHead>
-                            <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Unitaire (FBU)</TableHead>
+                            <TableHead className="text-foreground font-semibold w-1/4">Produit</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Qté Commandée</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Qté Reçue</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Prix Unit. (FBU)</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-1/6">Total Ligne (FBU)</TableHead>
+                            <TableHead className="text-foreground font-semibold text-center w-[100px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1453,48 +1475,63 @@ export default function PurchaseOrdersPage() {
                                   <p className="text-xs text-destructive mt-1">{errors.items[index]?.quantite_recue?.message}</p>
                                 )}
                               </TableCell>
-                              <TableCell className="py-2">
-                                <div className="flex items-center space-x-2">
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="Prix"
-                                    {...register(`items.${index}.prix_unitaire`, {
-                                      required: "Prix unitaire est requis",
-                                      min: { value: 0, message: "Prix ne peut pas être négatif" },
-                                      valueAsNumber: true,
-                                    })}
-                                    className="border-muted focus:ring-primary h-9"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => remove(index)}
-                                    className="hover:bg-destructive/10 h-9 w-9"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </div>
+                              <TableCell className="py-2 text-center">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Prix"
+                                  {...register(`items.${index}.prix_unitaire`, {
+                                    required: "Prix unitaire est requis",
+                                    min: { value: 0, message: "Prix ne peut pas être négatif" },
+                                    valueAsNumber: true,
+                                  })}
+                                  className="border-muted focus:ring-primary h-9 text-center"
+                                />
                                 {errors.items?.[index]?.prix_unitaire && (
                                   <p className="text-xs text-destructive mt-1">{errors.items[index]?.prix_unitaire?.message}</p>
                                 )}
+                              </TableCell>
+                              <TableCell className="py-2 text-center">
+                                <span className="font-medium text-primary">
+                                  {calculateLineTotal(watchedItems?.[index]?.quantite_commandee || 0, watchedItems?.[index]?.prix_unitaire || 0).toLocaleString()} FBU
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-2 text-center">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => remove(index)}
+                                  className="hover:bg-destructive/10 h-9 w-9"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
                               </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
-                      className="mt-4 ml-4"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Ajouter Article
-                    </Button>
+                    <div className="border-t pt-4 mt-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => append({ produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 })}
+                          className="ml-4"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Ajouter Article
+                        </Button>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Total de la commande</p>
+                          <p className="text-lg font-bold text-primary">
+                            {calculateOrderTotal(watchedItems || []).toLocaleString()} FBU
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2">
