@@ -33,54 +33,10 @@ import {
     Truck,
     CheckCircle,
 } from "lucide-react"
-import { useTransfertsStock } from "@/hooks/useTransfertsStock"
-import {
-    TransfertStock,
-    CreateTransfertStock,
-    UpdateTransfertStock,
-    TransfertStockLigne,
-    PointVente,
-    Utilisateur,
-    Produit,
-} from "@/types/transfertsStock"
-
-// Mock data for pointsVente, utilisateurs, produits - replace with real hooks/API if available
-const mockPointsVente: PointVente[] = [
-    { id: "1", nom: "Main Store - Downtown" },
-    { id: "2", nom: "Branch Store - Mall" },
-    { id: "3", nom: "Outlet Store - Airport" },
-]
-
-const mockUtilisateurs: Utilisateur[] = [
-    { id: "user1", nom: "Sarah Wilson", username: "sarahw" },
-    { id: "user2", nom: "Mike Johnson", username: "mikej" },
-    { id: "user3", nom: "Jane Smith", username: "janes" },
-]
-
-const mockProduits: Produit[] = [
-    { id: "prod1", nom: "Premium Coffee Beans" },
-    { id: "prod2", nom: "Organic Tea Set" },
-    { id: "prod3", nom: "Cotton T-Shirt" },
-]
-
-interface TransfertFormData {
-    numero_transfert: string;
-    point_vente_source: string;
-    point_vente_destination: string;
-    status: 'pending' | 'validated' | 'shipped' | 'received' | 'cancelled';
-    demandeur: string;
-    validateur?: string;
-    date_validation?: string;
-    date_expedition?: string;
-    date_reception?: string;
-    commentaire?: string;
-    lignes: {
-        produit: string;
-        quantite_demandee: number;
-        quantite_expediee: number;
-        quantite_recue: number;
-    }[];
-}
+import { useStocks } from "@/hooks/useStock"
+import { useTransfertsStock} from "@/hooks/useTransfertsStock";
+import {TransfertFormData} from "@/types/stock";
+import {CreateTransfertStock, TransfertStock, TransfertStockLigne} from "@/types/transfertsStock";
 
 const statusOptions = [
     { value: "all", label: "Tous les Statuts" },
@@ -91,11 +47,11 @@ const statusOptions = [
     { value: "cancelled", label: "Annulé" },
 ]
 
-export default function StockTransfersPage() {
+export default function StockPage() {
     const {
         transferts,
-        isLoading: loading,
-        error,
+        isLoading: loadingTransferts,
+        error: transfertsError,
         fetchLignes,
         createTransfert,
         updateTransfert,
@@ -106,13 +62,16 @@ export default function StockTransfersPage() {
         fetchTransferts,
     } = useTransfertsStock()
 
-    // Mock fetches - replace with real hooks if available
-    const [pointsVente] = useState(mockPointsVente)
-    const [utilisateurs] = useState(mockUtilisateurs)
-    const [produits] = useState(mockProduits)
-    const fetchPointsVente = () => {} // Mock
-    const fetchUtilisateurs = () => {} // Mock
-    const fetchProduits = () => {} // Mock
+    const {
+        stocks,
+        produits,
+        pointsVente,
+        loading: loadingStock,
+        error: stockError,
+        fetchStocks,
+        fetchProduits,
+        fetchPointsVente,
+    } = useStocks()
 
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedStatus, setSelectedStatus] = useState("all")
@@ -121,6 +80,13 @@ export default function StockTransfersPage() {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
     const [selectedTransfertId, setSelectedTransfertId] = useState<string | null>(null)
     const [editingTransfertId, setEditingTransfertId] = useState<string | null>(null)
+
+    // Mock utilisateurs - replace with real API if available
+    const [utilisateurs] = useState([
+        { id: "user1", nom: "Sarah Wilson", username: "sarahw" },
+        { id: "user2", nom: "Mike Johnson", username: "mikej" },
+        { id: "user3", nom: "Jane Smith", username: "janes" },
+    ])
 
     // Use fetchLignes from hook
     const lignesQuery = fetchLignes(selectedTransfertId)
@@ -148,17 +114,25 @@ export default function StockTransfersPage() {
     })
 
     useEffect(() => {
+        fetchStocks()
         fetchTransferts()
-        // Mock fetches
-        // fetchPointsVente()
-        // fetchUtilisateurs()
-        // fetchProduits()
-    }, [fetchTransferts])
+        fetchProduits()
+        fetchPointsVente()
+    }, [fetchStocks,fetchTransferts, fetchProduits, fetchPointsVente])
 
     const filteredTransferts = transferts.filter((transfert) => {
         const matchesSearch = transfert.numero_transfert.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesStatus = selectedStatus === "all" || transfert.status === selectedStatus
         return matchesSearch && matchesStatus
+    })
+
+    const filteredStocks = stocks.filter((stock) => {
+        const matchesSearch = stock.point_vente_nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            stock.produit_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            stock.produit_nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            stock.produit_categorie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            stock.produit_unite_mesure.toLowerCase().includes(searchTerm.toLowerCase())
+        return matchesSearch
     })
 
     const getStatusBadge = (status: string) => {
@@ -256,7 +230,7 @@ export default function StockTransfersPage() {
                             ligneId: existingLine.id,
                             data: {
                                 ...ligne,
-                                produit_nom: mockProduits.find(p => p.id === ligne.produit)?.nom || '',
+                                produit_nom: produits.find(p => p.id === ligne.produit)?.nom || '',
                             },
                         })
                     } else {
@@ -267,7 +241,7 @@ export default function StockTransfersPage() {
                                 quantite_demandee: ligne.quantite_demandee,
                                 quantite_expediee: ligne.quantite_expediee,
                                 quantite_recue: ligne.quantite_recue,
-                                produit_nom: mockProduits.find(p => p.id === ligne.produit)?.nom || '',
+                                produit_nom: produits.find(p => p.id === ligne.produit)?.nom || '',
                             },
                         })
                     }
@@ -285,7 +259,7 @@ export default function StockTransfersPage() {
                             quantite_demandee: ligne.quantite_demandee,
                             quantite_expediee: ligne.quantite_expediee,
                             quantite_recue: ligne.quantite_recue,
-                            produit_nom: mockProduits.find(p => p.id === ligne.produit)?.nom || '',
+                            produit_nom: produits.find(p => p.id === ligne.produit)?.nom || '',
                         },
                     })
                 }
@@ -376,6 +350,9 @@ export default function StockTransfersPage() {
         }
     }
 
+    const loading = loadingTransferts || loadingStock
+    const error = transfertsError || stockError
+
     if (loading && transferts.length === 0) {
         return (
             <POSLayout currentPath="/stock/transfers">
@@ -394,14 +371,14 @@ export default function StockTransfersPage() {
                     <div className="text-center space-y-4">
                         <p className="text-destructive flex items-center justify-center">
                             <AlertTriangle className="h-5 w-5 mr-2" />
-                            Erreur: {error.message}
+                            Erreur: {"message" in error && error.message || "Erreur lors du chargement"}
                         </p>
+
                         <Button
                             onClick={() => {
                                 fetchTransferts()
-                                // fetchPointsVente()
-                                // fetchUtilisateurs()
-                                // fetchProduits()
+                                fetchProduits()
+                                fetchPointsVente()
                             }}
                             className="bg-primary hover:bg-primary/90"
                         >
@@ -414,7 +391,7 @@ export default function StockTransfersPage() {
     }
 
     return (
-        <POSLayout currentPath="/stock/transfers">
+        <POSLayout currentPath="/stock">
             <TooltipProvider>
                 <div className="space-y-8 p-6 bg-gradient-to-b from-background to-background/90 min-h-screen">
                     {/* Page Header */}
@@ -431,7 +408,11 @@ export default function StockTransfersPage() {
                             <Button
                                 variant="outline"
                                 className="border-primary/20 hover:bg-primary/10 transition-all duration-200"
-                                onClick={() => fetchTransferts()}
+                                onClick={() => {
+                                    fetchTransferts()
+                                    fetchProduits()
+                                    fetchPointsVente()
+                                }}
                                 disabled={loading}
                             >
                                 {loading ? (
@@ -493,7 +474,6 @@ export default function StockTransfersPage() {
                                                 )}
                                             </div>
                                         </div>
-                                        {/* Rest of form remains the same, but ensure selects use mock data */}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="point_vente_source" className="text-sm font-medium">Point de Vente Source</Label>
@@ -546,8 +526,6 @@ export default function StockTransfersPage() {
                                                 )}
                                             </div>
                                         </div>
-                                        {/* Continue with other fields... (demandeur, validateur, dates, commentaire) */}
-                                        {/* For brevity, assuming the rest is copied similarly */}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="demandeur" className="text-sm font-medium">Demandeur</Label>
@@ -596,7 +574,6 @@ export default function StockTransfersPage() {
                                                 />
                                             </div>
                                         </div>
-                                        {/* Dates and commentaire sections... (omitted for brevity) */}
                                         <div className="space-y-2">
                                             <Label>Articles du Transfert</Label>
                                             <div className="border rounded-lg bg-background/95">
@@ -718,10 +695,10 @@ export default function StockTransfersPage() {
                                             </Button>
                                             <Button
                                                 type="submit"
-                                                disabled={createTransfert.isPending || loading}
+                                                disabled={loading}
                                                 className="bg-primary hover:bg-primary/90"
                                             >
-                                                {createTransfert.isPending || loading ? (
+                                                {loading ? (
                                                     <>
                                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                                         Création...
@@ -740,164 +717,158 @@ export default function StockTransfersPage() {
                         </div>
                     </div>
 
-                    {/* Filters - same as before */}
+                    {/* Filters */}
+                    <div className="flex items-center space-x-4">
+                        <div className="relative flex-1 max-w-md">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                            <Input
+                                placeholder="Rechercher par numéro de transfert..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 border-muted focus:ring-primary"
+                            />
+                        </div>
+                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                            <SelectTrigger className="w-[180px] border-muted">
+                                <SelectValue placeholder="Filtrer par statut" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {statusOptions.map((status) => (
+                                    <SelectItem key={status.value} value={status.value}>
+                                        {status.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                    {/* Summary Cards - same as before, using transferts */}
+                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                            <SelectTrigger className="w-[180px] border-muted">
+                                <SelectValue placeholder="Filtrer par statut" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {statusOptions.map((status) => (
+                                    <SelectItem key={status.value} value={status.value}>
+                                        {status.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                    {/* Transferts Table */}
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <Card className="bg-background/95 backdrop-blur-sm shadow-md">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-foreground">Total Transferts</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-foreground">{transferts.length}</div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-background/95 backdrop-blur-sm shadow-md">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-foreground">En Attente</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-foreground">
+                                    {transferts.filter(t => t.status === 'pending').length}
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-background/95 backdrop-blur-sm shadow-md">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-foreground">Validés</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-foreground">
+                                    {transferts.filter(t => t.status === 'validated').length}
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-background/95 backdrop-blur-sm shadow-md">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-foreground">Expédiés</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-foreground">
+                                    {transferts.filter(t => t.status === 'shipped').length}
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-background/95 backdrop-blur-sm shadow-md">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-foreground">Reçus</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-foreground">
+                                    {transferts.filter(t => t.status === 'received').length}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Eta stock Table */}
                     <Card className="bg-background/95 backdrop-blur-sm shadow-lg">
                         <CardHeader>
-                            <CardTitle className="text-2xl font-semibold text-foreground">Transferts de Stock</CardTitle>
-                            <p className="text-sm text-muted-foreground">Gérer les transferts entre points de vente</p>
+                            <CardTitle className="text-2xl font-semibold text-foreground">Stock</CardTitle>
+                            <p className="text-sm text-muted-foreground">Etat de stock</p>
                         </CardHeader>
                         <CardContent>
                             {error && (
                                 <p className="text-sm text-destructive mb-4 flex items-center">
                                     <AlertTriangle className="h-4 w-4 mr-2" />
-                                    {error.message}
+                                    {"message" in error && error.message || "Erreur lors du chargement"}
                                 </p>
                             )}
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-muted/50">
-                                        <TableHead className="text-foreground font-semibold">Numéro Transfert</TableHead>
-                                        <TableHead className="text-foreground font-semibold">Source</TableHead>
-                                        <TableHead className="text-foreground font-semibold">Destination</TableHead>
-                                        <TableHead className="text-foreground font-semibold">Statut</TableHead>
-                                        <TableHead className="text-foreground font-semibold">Articles</TableHead>
-                                        <TableHead className="text-foreground font-semibold">Demandeur</TableHead>
-                                        <TableHead className="text-foreground font-semibold">Date Demande</TableHead>
-                                        <TableHead className="text-foreground font-semibold">Actions</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Point de vente</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Type stock</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Reference</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Categorie</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Nom</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Unite Mesure</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Qte Actuele</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Qte Entre</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Qte Sortie</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Dernier Entre</TableHead>
+                                        <TableHead className="text-foreground font-semibold">Dernier Sortie</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {loading && transferts.length === 0 ? (
+                                    {loading && stocks.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={8} className="text-center py-4">
                                                 <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                                             </TableCell>
                                         </TableRow>
-                                    ) : filteredTransferts.length === 0 ? (
+                                    ) : filteredStocks.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                                                Aucun transfert trouvé.
+                                            <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                                                Aucun stock trouvé.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredTransferts.map((transfert) => {
-                                            const source = pointsVente.find((pv) => pv.id === transfert.point_vente_source)
-                                            const destination = pointsVente.find((pv) => pv.id === transfert.point_vente_destination)
-                                            const demandeur = utilisateurs.find((u) => u.id === transfert.demandeur)
-                                            const numArticles = transfert.lignes?.length || lignesQuery.data?.length || 0
+                                        filteredStocks.map((stock) => {
                                             return (
-                                                <TableRow key={transfert.id} className="hover:bg-muted/20 transition-colors">
+                                                <TableRow key={stock.id} className="hover:bg-muted/20 transition-colors">
                                                     <TableCell>
                                                         <div className="flex items-center space-x-2">
                                                             <Package className="h-4 w-4 text-muted-foreground" />
-                                                            <span className="font-medium">{transfert.numero_transfert}</span>
+                                                            <span className="font-medium">{stock.point_vente_nom}</span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>{source?.nom || transfert.point_vente_source_nom || 'Inconnu'}</TableCell>
-                                                    <TableCell>{destination?.nom || transfert.point_vente_destination_nom || 'Inconnu'}</TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center space-x-2">
-                                                            {getStatusIcon(transfert.status)}
-                                                            {getStatusBadge(transfert.status)}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>{numArticles} article{numArticles !== 1 ? 's' : ''}</TableCell>
-                                                    <TableCell>{demandeur?.username || transfert.demandeur_username || 'Inconnu'}</TableCell>
-                                                    <TableCell>{formatDate(transfert.date_demande)}</TableCell>
-                                                    <TableCell>
-                                                        <div className="flex space-x-2">
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        onClick={() => {
-                                                                            setSelectedTransfertId(transfert.id || '')
-                                                                            setIsDetailModalOpen(true)
-                                                                        }}
-                                                                        className="hover:bg-primary/10"
-                                                                    >
-                                                                        <Eye className="h-3 w-3 text-primary" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>Voir les détails</TooltipContent>
-                                                            </Tooltip>
-                                                            {transfert.status === 'pending' && (
-                                                                <>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="ghost"
-                                                                                onClick={() => handleEditTransfert(transfert)}
-                                                                                className="hover:bg-primary/10"
-                                                                            >
-                                                                                <Edit className="h-3 w-3 text-primary" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>Modifier Transfert</TooltipContent>
-                                                                    </Tooltip>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button
-                                                                                size="sm"
-                                                                                onClick={() => handleValidateTransfert(transfert.id || '')}
-                                                                                className="bg-blue-500 hover:bg-blue-600 text-white"
-                                                                            >
-                                                                                Valider
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>Valider Transfert</TooltipContent>
-                                                                    </Tooltip>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="ghost"
-                                                                                onClick={() => handleDeleteTransfert(transfert.id || '')}
-                                                                                className="hover:bg-destructive/10"
-                                                                            >
-                                                                                <Trash2 className="h-3 w-3 text-destructive" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>Supprimer Transfert</TooltipContent>
-                                                                    </Tooltip>
-                                                                </>
-                                                            )}
-                                                            {transfert.status === 'validated' && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            onClick={() => handleShipTransfert(transfert.id || '')}
-                                                                            className="bg-yellow-500 hover:bg-yellow-600 text-white"
-                                                                        >
-                                                                            Expédier
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>Marquer comme Expédié</TooltipContent>
-                                                                </Tooltip>
-                                                            )}
-                                                            {transfert.status === 'shipped' && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            onClick={() => handleReceiveTransfert(transfert.id || '')}
-                                                                            className="bg-green-500 hover:bg-green-600 text-white"
-                                                                        >
-                                                                            Recevoir
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>Marquer comme Reçu</TooltipContent>
-                                                                </Tooltip>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
+                                                    <TableCell>{stock.type_stock}</TableCell>
+                                                    <TableCell>{stock.produit_reference}</TableCell>
+                                                    <TableCell>{stock.produit_categorie}</TableCell>
+                                                    <TableCell>{stock.produit_nom}</TableCell>
+                                                    <TableCell>{stock.produit_unite_mesure}</TableCell>
+                                                    <TableCell>{stock.quantite_actuelle}</TableCell>
+                                                    <TableCell>{stock.quantite_actuelle}</TableCell>
+                                                    <TableCell>{stock.quantite_actuelle}</TableCell>
+                                                    <TableCell>{formatDate(stock.date_derniere_entree)}</TableCell>
+                                                    <TableCell>{formatDate(stock.date_derniere_sortie)}</TableCell>
                                                 </TableRow>
                                             )
                                         })
@@ -906,8 +877,6 @@ export default function StockTransfersPage() {
                             </Table>
                         </CardContent>
                     </Card>
-
-                    {/* Edit Modal - similar to add, but with updateTransfert.isPending in button */}
 
                     {/* Detail Modal */}
                     <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
@@ -927,7 +896,85 @@ export default function StockTransfersPage() {
                                         const validateur = utilisateurs.find((u) => u.id === transfert.validateur)
                                         return (
                                             <>
-                                                {/* Info sections - same as before */}
+                                                <div className="grid grid-cols-2 gap-6">
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <Label className="text-sm font-medium">Informations Générales</Label>
+                                                            <div className="mt-2 space-y-2 text-sm">
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Numéro:</span>
+                                                                    <span className="font-medium">{transfert.numero_transfert}</span>
+                                                                </div>
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Statut:</span>
+                                                                    {getStatusBadge(transfert.status)}
+                                                                </div>
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Demandeur:</span>
+                                                                    <span className="font-medium">{demandeur?.username || transfert.demandeur_username || 'Inconnu'}</span>
+                                                                </div>
+                                                                {transfert.validateur && (
+                                                                    <div className="flex justify-between">
+                                                                        <span className="text-muted-foreground">Validateur:</span>
+                                                                        <span className="font-medium">{validateur?.username || transfert.validateur_username || 'Inconnu'}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <Label className="text-sm font-medium">Points de Vente</Label>
+                                                            <div className="mt-2 space-y-2 text-sm">
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Source:</span>
+                                                                    <span className="font-medium">{source?.nom || transfert.point_vente_source_nom || 'Inconnu'}</span>
+                                                                </div>
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Destination:</span>
+                                                                    <span className="font-medium">{destination?.nom || transfert.point_vente_destination_nom || 'Inconnu'}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-sm font-medium">Dates</Label>
+                                                            <div className="mt-2 space-y-2 text-sm">
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Demande:</span>
+                                                                    <span className="font-medium">{formatDate(transfert.date_demande)}</span>
+                                                                </div>
+                                                                {transfert.date_validation && (
+                                                                    <div className="flex justify-between">
+                                                                        <span className="text-muted-foreground">Validation:</span>
+                                                                        <span className="font-medium">{formatDate(transfert.date_validation)}</span>
+                                                                    </div>
+                                                                )}
+                                                                {transfert.date_expedition && (
+                                                                    <div className="flex justify-between">
+                                                                        <span className="text-muted-foreground">Expédition:</span>
+                                                                        <span className="font-medium">{formatDate(transfert.date_expedition)}</span>
+                                                                    </div>
+                                                                )}
+                                                                {transfert.date_reception && (
+                                                                    <div className="flex justify-between">
+                                                                        <span className="text-muted-foreground">Réception:</span>
+                                                                        <span className="font-medium">{formatDate(transfert.date_reception)}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {transfert.commentaire && (
+                                                    <div className="space-y-2">
+                                                        <Label className="text-sm font-medium">Commentaire</Label>
+                                                        <Textarea
+                                                            value={transfert.commentaire}
+                                                            readOnly
+                                                            className="border-muted bg-muted/20"
+                                                        />
+                                                    </div>
+                                                )}
                                                 <div className="space-y-2">
                                                     <Label className="text-sm font-medium">Articles du Transfert</Label>
                                                     {lignesQuery.isLoading ? (
@@ -981,3 +1028,4 @@ export default function StockTransfersPage() {
         </POSLayout>
     )
 }
+
