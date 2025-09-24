@@ -1,40 +1,70 @@
+import {CommandeFournisseurLigne} from "@/types/commandesFournisseurs";
+
+export interface StockMovementLigne {
+    id?: string;
+    unite: 'piece' | 'kg' | 'litre' | 'metre' | 'paquet' | 'boite' | 'sac';
+    quantite_mouvement: number;
+    prix_unitaire: string;
+    mouvement_stock?: string;
+    montant_ligne?: string;
+    produit: string;
+}
+
 export interface StockMovement {
   id: string;
   type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-  quantite: number;
-  prix_unitaire: number; // Price in FBU
+  lignes?: StockMovementLigne[];
+  stock: string;
+  stock_nom: string;
+  point_vente_nom: string;
+  utilisateur_non: string;
+  reference: string;
   reference_document: string;
-  motif: string;
-  date_expiration?: string; // Optional, ISO date
-  stock: string; // UUID referencing Stock
-  utilisateur: string; // UUID referencing User
-  created_at: string; // ISO date
+  utilisateur: string;
+  created_at: string;
+}
+
+export interface StockMovementFormData {
+    type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
+    reference_document: string;
+    reference: string;
+    stock: string;
+    utilisateur: string;
+    lignes: {
+        produit: string;
+        unite: 'piece' | 'kg' | 'litre' | 'metre' | 'paquet' | 'boite' | 'sac';
+        quantite_mouvement: number;
+        prix_unitaire: number;
+    }[];
 }
 
 export interface StockMovementResponse extends StockMovement {
-  // Additional fields from API response, if any
+    id: string;
+    type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
+    lignes?: StockMovementLigne[];
+    stock_nom: string;
+    point_vente_nom: string;
+    utilisateur_non: string;
+    reference: string;
+    reference_document: string;
+    utilisateur: string;
+    created_at: string;
 }
 
 export interface CreateStockMovementRequest {
-  type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-  quantite: number;
-  prix_unitaire: number;
-  reference_document?: string;
-  motif: string;
-  date_expiration?: string;
-  stock: string;
-  utilisateur: string;
+    type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
+    reference_document: string;
+    reference: string;
+    stock: string;
+    utilisateur: string;
 }
 
 export interface UpdateStockMovementRequest {
-  type_mouvement?: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-  quantite?: number;
-  prix_unitaire?: number;
-  reference_document?: string;
-  motif?: string;
-  date_expiration?: string;
-  stock?: string;
-  utilisateur?: string;
+    type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
+    reference_document: string;
+    reference: string;
+    stock: string;
+    utilisateur: string;
 }
 
 export interface Stock {

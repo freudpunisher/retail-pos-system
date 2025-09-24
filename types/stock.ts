@@ -31,6 +31,7 @@ export interface TransfertFormData {
         quantite_demandee: number;
         quantite_expediee: number;
         quantite_recue: number;
+
     }[];
 }
 
