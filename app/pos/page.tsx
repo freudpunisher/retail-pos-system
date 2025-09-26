@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { POSLayout } from "@/components/pos-layout"
+import { BillPrinter } from "@/components/bill-printer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Search,
   Scan,
@@ -26,61 +28,23 @@ import {
   User,
   Pause,
   RotateCcw,
+  Printer,
 } from "lucide-react"
 
-// Mock data
-const categories = [
-  { id: "electronics", name: "Electronics", color: "bg-blue-100 text-blue-800" },
-  { id: "food", name: "Food & Beverages", color: "bg-green-100 text-green-800" },
-  { id: "clothing", name: "Clothing", color: "bg-purple-100 text-purple-800" },
-  { id: "home", name: "Home & Garden", color: "bg-orange-100 text-orange-800" },
-  { id: "books", name: "Books & Media", color: "bg-indigo-100 text-indigo-800" },
-]
+// Import hooks and types
+import { useActiveClients } from "@/hooks/useClients"
+import { useCreateVente, useConfirmVente } from "@/hooks/useVentes"
+import { useStocksByPointVente } from "@/hooks/usePOSStocks"
+import { useCategories } from "@/hooks/useCategories"
+import { Client } from "@/types/client.types"
+import { Vente, CreateVentePayload } from "@/types/vente.types"
+import { Stock } from "@/types/stock.types"
+import { toast } from "sonner"
 
-const products = [
-  {
-    id: "1",
-    name: "Premium Coffee Beans",
-    barcode: "1234567890123",
-    category: "food",
-    price: 15.99,
-    tax: 0.08,
-    stock: 45,
-  },
-  {
-    id: "2",
-    name: "Wireless Headphones",
-    barcode: "2345678901234",
-    category: "electronics",
-    price: 99.99,
-    tax: 0.08,
-    stock: 23,
-  },
-  {
-    id: "3",
-    name: "Organic Tea Set",
-    barcode: "3456789012345",
-    category: "food",
-    price: 24.99,
-    tax: 0.08,
-    stock: 18,
-  },
-  {
-    id: "4",
-    name: "Cotton T-Shirt",
-    barcode: "4567890123456",
-    category: "clothing",
-    price: 19.99,
-    tax: 0.08,
-    stock: 67,
-  },
-]
-
-const customers = [
-  { id: "1", name: "John Smith", email: "john@example.com", phone: "+1234567890" },
-  { id: "2", name: "Sarah Johnson", email: "sarah@example.com", phone: "+1234567891" },
-  { id: "3", name: "Mike Davis", email: "mike@example.com", phone: "+1234567892" },
-]
+// Constants
+const POINT_VENTE_ID = "460c730f-7c08-45ee-9a71-6dea36241819"
+const VENDEUR_ID = "default-vendeur"
+const DEVICE_ID = "pos-terminal-001"
 
 const heldOrders = [
   {
@@ -106,6 +70,7 @@ interface CartItem {
   quantity: number
   discount: number
   tax: number
+  unite: "piece" | "kg" | "litre" | "metre"
 }
 
 export default function POSPage() {
@@ -116,30 +81,67 @@ export default function POSPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null)
   const [globalDiscount, setGlobalDiscount] = useState(0)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [billPrinterOpen, setBillPrinterOpen] = useState(false)
+  const [currentVente, setCurrentVente] = useState<Vente | null>(null)
+  const [comments, setComments] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  const filteredProducts = products.filter((product) => {
+  // Hooks
+  const { data: clients = [], isLoading: clientsLoading } = useActiveClients()
+  const { data: stocks = [], isLoading: stocksLoading } = useStocksByPointVente(POINT_VENTE_ID)
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories()
+  const createVenteMutation = useCreateVente()
+  const confirmVenteMutation = useConfirmVente()
+
+  // Get selected client data
+  const selectedClient = clients.find(client => client.id === selectedCustomer)
+
+  const filteredStocks = stocks.filter((stock) => {
     const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) || product.barcode.includes(searchTerm)
-    const matchesCategory = !selectedCategory || product.category === selectedCategory
-    return matchesSearch && matchesCategory
+      stock.produit_nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      stock.produit.includes(searchTerm) // Search by product ID as well
+    // Note: We'll skip category filtering for now since stocks don't include category info
+    // const matchesCategory = !selectedCategory || stock.categorie === selectedCategory
+    const hasStock = Number(stock.quantite_disponible) > 0 // Only show items with available stock
+    return matchesSearch && hasStock
   })
 
-  const addToCart = (product: (typeof products)[0]) => {
-    const existingItem = cart.find((item) => item.id === product.id)
+  const addToCart = (stock: Stock) => {
+    // Check if item already in cart
+    const existingItem = cart.find((item) => item.id === stock.produit)
+    
     if (existingItem) {
-      setCart(cart.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)))
+      // Check if we have enough stock
+      const newQuantity = existingItem.quantity + 1
+      const availableQuantity = Number(stock.quantite_disponible)
+      
+      if (newQuantity <= availableQuantity) {
+        setCart(cart.map((item) => 
+          (item.id === stock.produit ? { ...item, quantity: newQuantity } : item)
+        ))
+      } else {
+        toast.error(`Stock insuffisant. Quantité disponible: ${availableQuantity}`)
+      }
     } else {
-      setCart([
-        ...cart,
-        {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          quantity: 1,
-          discount: 0,
-          tax: product.tax,
-        },
-      ])
+      // Add new item to cart
+      const availableQuantity = Number(stock.quantite_disponible)
+      
+      if (availableQuantity > 0) {
+        setCart([
+          ...cart,
+          {
+            id: stock.produit,
+            name: stock.produit_nom,
+            price: 10.00, // Default price - you might want to get this from product details
+            quantity: 1,
+            discount: 0,
+            tax: 0.20, // Default 20% tax - you might want to get this from product details
+            unite: "piece", // Default to piece
+          },
+        ])
+      } else {
+        toast.error("Produit en rupture de stock")
+      }
     }
   }
 
@@ -147,7 +149,15 @@ export default function POSPage() {
     if (quantity <= 0) {
       setCart(cart.filter((item) => item.id !== id))
     } else {
-      setCart(cart.map((item) => (item.id === id ? { ...item, quantity } : item)))
+      // Check stock availability
+      const stock = stocks.find(s => s.produit === id)
+      const availableQuantity = stock ? Number(stock.quantite_disponible) : 0
+      
+      if (quantity <= availableQuantity) {
+        setCart(cart.map((item) => (item.id === id ? { ...item, quantity } : item)))
+      } else {
+        toast.error(`Stock insuffisant. Quantité disponible: ${availableQuantity}`)
+      }
     }
   }
 
@@ -181,6 +191,104 @@ export default function POSPage() {
     const tax = calculateTax()
     const globalDiscountAmount = subtotal * (globalDiscount / 100)
     return subtotal + tax - globalDiscountAmount
+  }
+
+  // Create vente payload
+  const createVentePayload = (status: 'draft' | 'confirmed', paymentStatus: 'pending' | 'paid'): CreateVentePayload => {
+    const payload: CreateVentePayload = {
+      point_vente: POINT_VENTE_ID,
+      vendeur: VENDEUR_ID,
+      status,
+      payment_status: paymentStatus,
+      remise_globale: globalDiscount.toString(),
+      date_echeance: new Date().toISOString(),
+      is_synced: false,
+      device_id: DEVICE_ID,
+      offline_created: false,
+      commentaire: comments,
+      lignes: cart.map(item => ({
+        produit: item.id,
+        unite: item.unite,
+        quantite: item.quantity,
+        prix_unitaire_ht: (item.price / (1 + item.tax)).toFixed(2),
+        taux_tva: (item.tax * 100).toFixed(2),
+        remise_pourcentage: item.discount.toString()
+      }))
+    }
+
+    // Only include client field if a client is selected
+    if (selectedCustomer) {
+      payload.client = selectedCustomer
+    }
+
+    return payload
+  }
+
+  // Process payment and create sale
+  const handlePayment = async (paymentMethod: 'cash' | 'card' | 'mobile' | 'mixed') => {
+    if (cart.length === 0) {
+      toast.error("Le panier est vide")
+      return
+    }
+
+    setIsProcessing(true)
+    
+    try {
+      // Create vente as confirmed and paid
+      const ventePayload = createVentePayload('confirmed', 'paid')
+      const createdVente = await createVenteMutation.mutateAsync(ventePayload)
+      
+      // Set current vente for printing
+      setCurrentVente(createdVente)
+      
+      // Clear cart and reset form
+      setCart([])
+      setGlobalDiscount(0)
+      setComments("")
+      setSelectedCustomer(null)
+      setPaymentModalOpen(false)
+      
+      // Show success message
+      toast.success(`Vente créée avec succès! Total: ${calculateTotal().toFixed(2)} FBU`)
+      
+      // Open bill printer
+      setBillPrinterOpen(true)
+      
+    } catch (error) {
+      console.error('Error processing payment:', error)
+      toast.error("Erreur lors du traitement du paiement")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Hold order (save as draft)
+  const handleHoldOrder = async () => {
+    if (cart.length === 0) {
+      toast.error("Le panier est vide")
+      return
+    }
+
+    setIsProcessing(true)
+    
+    try {
+      const ventePayload = createVentePayload('draft', 'pending')
+      await createVenteMutation.mutateAsync(ventePayload)
+      
+      // Clear cart and reset form
+      setCart([])
+      setGlobalDiscount(0)
+      setComments("")
+      setSelectedCustomer(null)
+      
+      toast.success("Commande mise en attente avec succès")
+      
+    } catch (error) {
+      console.error('Error holding order:', error)
+      toast.error("Erreur lors de la mise en attente")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -233,52 +341,82 @@ export default function POSPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Categories</CardTitle>
+                    <CardTitle className="text-lg">Filtres de Stock</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 gap-2">
                       <Button
-                        variant={selectedCategory === null ? "default" : "outline"}
-                        onClick={() => setSelectedCategory(null)}
+                        variant="outline"
+                        onClick={() => setSearchTerm("")}
                         className="justify-start"
                       >
-                        All Categories
+                        Tous les produits
                       </Button>
-                      {categories.map((category) => (
-                        <Button
-                          key={category.id}
-                          variant={selectedCategory === category.id ? "default" : "outline"}
-                          onClick={() => setSelectedCategory(category.id)}
-                          className="justify-start"
-                        >
-                          {category.name}
-                        </Button>
-                      ))}
+                      <div className="text-sm text-muted-foreground mt-2">
+                        Total des produits en stock: {stocks.length}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Produits disponibles: {stocks.filter(s => Number(s.quantite_disponible) > 0).length}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Ruptures de stock: {stocks.filter(s => Number(s.quantite_disponible) <= 0).length}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Products</CardTitle>
+                    <CardTitle className="text-lg">Produits en Stock</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {filteredProducts.map((product) => (
-                        <div
-                          key={product.id}
-                          className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted cursor-pointer"
-                          onClick={() => addToCart(product)}
-                        >
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">${product.price}</p>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            {product.stock}
-                          </Badge>
+                      {stocksLoading ? (
+                        <div className="text-center py-4">Chargement des stocks...</div>
+                      ) : filteredStocks.length === 0 ? (
+                        <div className="text-center py-4 text-muted-foreground">
+                          Aucun produit en stock trouvé
                         </div>
-                      ))}
+                      ) : (
+                        filteredStocks.map((stock) => {
+                          const cartItem = cart.find(item => item.id === stock.produit)
+                          const cartQuantity = cartItem ? cartItem.quantity : 0
+                          const availableQuantity = Number(stock.quantite_disponible) - cartQuantity
+                          
+                          return (
+                            <div
+                              key={stock.id}
+                              className={`flex items-center justify-between p-2 border rounded-lg hover:bg-muted cursor-pointer ${
+                                availableQuantity <= 0 ? 'opacity-50' : ''
+                              }`}
+                              onClick={() => availableQuantity > 0 && addToCart(stock)}
+                            >
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{stock.produit_nom}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  ID: {stock.produit}
+                                </p>
+                                {cartQuantity > 0 && (
+                                  <p className="text-xs text-blue-600">
+                                    {cartQuantity} dans le panier
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <Badge 
+                                  variant={availableQuantity > 5 ? "outline" : availableQuantity > 0 ? "secondary" : "destructive"} 
+                                  className="text-xs"
+                                >
+                                  {availableQuantity}
+                                </Badge>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Total: {stock.quantite_disponible}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -321,7 +459,7 @@ export default function POSPage() {
                                   <TableCell>
                                     <div>
                                       <p className="font-medium">{item.name}</p>
-                                      <p className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</p>
+                                      <p className="text-sm text-muted-foreground">{item.price.toFixed(2)} FBU each</p>
                                     </div>
                                   </TableCell>
                                   <TableCell>
@@ -343,7 +481,7 @@ export default function POSPage() {
                                       </Button>
                                     </div>
                                   </TableCell>
-                                  <TableCell>${item.price.toFixed(2)}</TableCell>
+                                  <TableCell>{item.price.toFixed(2)} FBU</TableCell>
                                   <TableCell>
                                     <Input
                                       type="number"
@@ -354,7 +492,7 @@ export default function POSPage() {
                                       max="100"
                                     />
                                   </TableCell>
-                                  <TableCell className="font-medium">${finalTotal.toFixed(2)}</TableCell>
+                                  <TableCell className="font-medium">{finalTotal.toFixed(2)} FBU</TableCell>
                                   <TableCell>
                                     <Button size="sm" variant="ghost" onClick={() => removeFromCart(item.id)}>
                                       <Trash2 className="h-4 w-4" />
@@ -375,39 +513,50 @@ export default function POSPage() {
               <div className="col-span-3 space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Customer</CardTitle>
+                    <CardTitle className="text-lg">Client</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Select value={selectedCustomer || ""} onValueChange={setSelectedCustomer}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select customer (optional)" />
+                        <SelectValue placeholder="Sélectionner un client (optionnel)" />
                       </SelectTrigger>
                       <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
+                        {clientsLoading ? (
+                          <div className="p-2 text-center">Chargement...</div>
+                        ) : (
+                          clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.nom} {client.prenom} ({client.type_client})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <Button variant="outline" className="w-full mt-2 bg-transparent">
                       <User className="h-4 w-4 mr-2" />
-                      New Customer
+                      Nouveau Client
                     </Button>
+                    {selectedClient && (
+                      <div className="mt-2 p-2 bg-muted rounded text-sm">
+                        <p><strong>{selectedClient.nom} {selectedClient.prenom}</strong></p>
+                        <p>{selectedClient.email}</p>
+                        <p>{selectedClient.telephone}</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Order Summary</CardTitle>
+                    <CardTitle className="text-lg">Résumé de la Commande</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span>${calculateSubtotal().toFixed(2)}</span>
+                      <span>Sous-total:</span>
+                      <span>{calculateSubtotal().toFixed(2)} FBU</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>Global Discount:</span>
+                      <span>Remise globale:</span>
                       <div className="flex items-center space-x-2">
                         <Input
                           type="number"
@@ -421,67 +570,108 @@ export default function POSPage() {
                       </div>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tax:</span>
-                      <span>${calculateTax().toFixed(2)}</span>
+                      <span>TVA:</span>
+                      <span>{calculateTax().toFixed(2)} FBU</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total:</span>
-                      <span>${calculateTotal().toFixed(2)}</span>
+                      <span>{calculateTotal().toFixed(2)} FBU</span>
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Commentaires</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      placeholder="Commentaires sur la vente (optionnel)..."
+                      value={comments}
+                      onChange={(e) => setComments(e.target.value)}
+                      className="min-h-16"
+                    />
                   </CardContent>
                 </Card>
 
                 <div className="space-y-2">
                   <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
                     <DialogTrigger asChild>
-                      <Button className="w-full" size="lg" disabled={cart.length === 0}>
+                      <Button className="w-full" size="lg" disabled={cart.length === 0 || isProcessing}>
                         <CreditCard className="h-4 w-4 mr-2" />
-                        Process Payment
+                        {isProcessing ? "Traitement..." : "Traiter le Paiement"}
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
-                        <DialogTitle>Process Payment</DialogTitle>
+                        <DialogTitle>Traiter le Paiement</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="text-center">
-                          <p className="text-2xl font-bold">${calculateTotal().toFixed(2)}</p>
-                          <p className="text-muted-foreground">Total Amount</p>
+                          <p className="text-2xl font-bold">{calculateTotal().toFixed(2)} FBU</p>
+                          <p className="text-muted-foreground">Montant Total</p>
                         </div>
                         <Separator />
                         <div className="grid grid-cols-2 gap-4">
-                          <Button variant="outline" className="h-20 flex-col bg-transparent">
+                          <Button 
+                            variant="outline" 
+                            className="h-20 flex-col bg-transparent" 
+                            onClick={() => handlePayment('cash')}
+                            disabled={isProcessing}
+                          >
                             <DollarSign className="h-6 w-6 mb-2" />
-                            Cash
+                            Espèces
                           </Button>
-                          <Button variant="outline" className="h-20 flex-col bg-transparent">
+                          <Button 
+                            variant="outline" 
+                            className="h-20 flex-col bg-transparent"
+                            onClick={() => handlePayment('card')}
+                            disabled={isProcessing}
+                          >
                             <CreditCard className="h-6 w-6 mb-2" />
-                            Card
+                            Carte
                           </Button>
-                          <Button variant="outline" className="h-20 flex-col bg-transparent">
+                          <Button 
+                            variant="outline" 
+                            className="h-20 flex-col bg-transparent"
+                            onClick={() => handlePayment('mobile')}
+                            disabled={isProcessing}
+                          >
                             <Smartphone className="h-6 w-6 mb-2" />
                             Mobile
                           </Button>
-                          <Button variant="outline" className="h-20 flex-col bg-transparent">
+                          <Button 
+                            variant="outline" 
+                            className="h-20 flex-col bg-transparent"
+                            onClick={() => handlePayment('mixed')}
+                            disabled={isProcessing}
+                          >
                             <Receipt className="h-6 w-6 mb-2" />
-                            Mixed
+                            Mixte
                           </Button>
                         </div>
-                        <Button className="w-full" onClick={() => setPaymentModalOpen(false)}>
-                          Complete Sale
-                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
 
-                  <Button variant="outline" className="w-full bg-transparent" disabled={cart.length === 0}>
+                  <Button 
+                    variant="outline" 
+                    className="w-full bg-transparent" 
+                    disabled={cart.length === 0 || isProcessing}
+                    onClick={handleHoldOrder}
+                  >
                     <Pause className="h-4 w-4 mr-2" />
-                    Hold Order
+                    Mettre en Attente
                   </Button>
 
-                  <Button variant="outline" className="w-full bg-transparent" onClick={() => setCart([])}>
-                    Clear Cart
+                  <Button 
+                    variant="outline" 
+                    className="w-full bg-transparent" 
+                    onClick={() => setCart([])}
+                    disabled={isProcessing}
+                  >
+                    Vider le Panier
                   </Button>
                 </div>
               </div>
@@ -560,6 +750,17 @@ export default function POSPage() {
             </Card>
           </TabsContent>
         </Tabs>
+        
+        {/* Bill Printer Modal */}
+        <BillPrinter
+          vente={currentVente}
+          client={selectedClient}
+          isOpen={billPrinterOpen}
+          onClose={() => {
+            setBillPrinterOpen(false)
+            setCurrentVente(null)
+          }}
+        />
       </div>
     </POSLayout>
   )
