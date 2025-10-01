@@ -152,9 +152,9 @@ export function BillPrinter({ vente, client, isOpen, onClose }: BillPrinterProps
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto dark:bg-slate-800">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between text-sm">
+          <DialogTitle className="flex items-center justify-between text-sm text-slate-800 dark:text-slate-200">
             Aperçu du Reçu
             <Button onClick={handlePrint} size="sm">
               <Printer className="h-4 w-4 mr-2" />
@@ -163,36 +163,36 @@ export function BillPrinter({ vente, client, isOpen, onClose }: BillPrinterProps
           </DialogTitle>
         </DialogHeader>
 
-        <div id="thermal-receipt" className="bg-white p-4">
+        <div id="thermal-receipt" className="bg-white dark:bg-slate-700 p-4 rounded-lg border dark:border-slate-600">
           <div className="receipt">
             {/* Header */}
             <div className="center">
-              <div className="company-name">RETAIL POS SYSTEM</div>
-              <div className="small">123 Business Street</div>
-              <div className="small">Tel: +1 (555) 123-4567</div>
-              <div className="small">contact@retailpos.com</div>
+              <div className="company-name text-slate-800 dark:text-slate-200">RETAIL POS SYSTEM</div>
+              <div className="small text-slate-600 dark:text-slate-400">123 Business Street</div>
+              <div className="small text-slate-600 dark:text-slate-400">Tel: +1 (555) 123-4567</div>
+              <div className="small text-slate-600 dark:text-slate-400">contact@retailpos.com</div>
             </div>
             
-            <div className="divider"></div>
+            <div className="divider border-slate-300 dark:border-slate-600"></div>
             
             {/* Receipt Info */}
             <div className="spacing">
-              <div className="left bold">REÇU DE VENTE</div>
-              <div className="left small">N°: {vente.numero_facture || vente.id?.slice(0, 8)}</div>
-              <div className="left small">
+              <div className="left bold text-slate-800 dark:text-slate-200">REÇU DE VENTE</div>
+              <div className="left small text-slate-600 dark:text-slate-400">N°: {vente.numero_facture || vente.id?.slice(0, 8)}</div>
+              <div className="left small text-slate-600 dark:text-slate-400">
                 Date: {vente.created_at ? formatDate(vente.created_at).split(' ')[0] + ' ' + formatDate(vente.created_at).split(' ')[1] : new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
               </div>
               {client && (
-                <div className="left small">
+                <div className="left small text-slate-600 dark:text-slate-400">
                   Client: {client.nom} {client.prenom}
                 </div>
               )}
-              <div className="left small">
+              <div className="left small text-slate-600 dark:text-slate-400">
                 Statut: {vente.payment_status === 'paid' ? 'PAYÉ' : 'EN ATTENTE'}
               </div>
             </div>
             
-            <div className="divider"></div>
+            <div className="divider border-slate-300 dark:border-slate-600"></div>
             
             {/* Items */}
             <div className="spacing">
@@ -204,77 +204,77 @@ export function BillPrinter({ vente, client, isOpen, onClose }: BillPrinterProps
 
                 return (
                   <div key={index} className="item-row">
-                    <div className="item-name">{line.produit}</div>
-                    <div className="item-details">
+                    <div className="item-name text-slate-800 dark:text-slate-200">{line.produit}</div>
+                    <div className="item-details text-slate-700 dark:text-slate-300">
                       <span>{line.quantite} x {Number(line.prix_unitaire_ht).toFixed(0)} FBU</span>
-                      <span className="right bold">{finalTotal.toFixed(0)} FBU</span>
+                      <span className="right bold text-slate-800 dark:text-slate-200">{finalTotal.toFixed(0)} FBU</span>
                     </div>
                     {Number(line.remise_pourcentage || 0) > 0 && (
-                      <div className="left small">  Remise: -{Number(line.remise_pourcentage).toFixed(0)}%</div>
+                      <div className="left small text-slate-600 dark:text-slate-400">  Remise: -{Number(line.remise_pourcentage).toFixed(0)}%</div>
                     )}
                     {Number(line.taux_tva || 0) > 0 && (
-                      <div className="left small">  TVA: {Number(line.taux_tva).toFixed(0)}%</div>
+                      <div className="left small text-slate-600 dark:text-slate-400">  TVA: {Number(line.taux_tva).toFixed(0)}%</div>
                     )}
                   </div>
                 )
               }) || []}
             </div>
             
-            <div className="divider"></div>
+            <div className="divider border-slate-300 dark:border-slate-600"></div>
             
             {/* Totals */}
             <div className="spacing">
-              <div className="total-row">
+              <div className="total-row text-slate-700 dark:text-slate-300">
                 <span>Sous-total:</span>
                 <span>{calculateSubtotal().toFixed(0)} FBU</span>
               </div>
               
               {Number(vente.remise_globale || 0) > 0 && (
-                <div className="total-row">
+                <div className="total-row text-slate-700 dark:text-slate-300">
                   <span>Remise globale ({Number(vente.remise_globale).toFixed(0)}%):</span>
                   <span>-{(calculateSubtotal() * (Number(vente.remise_globale) / 100)).toFixed(0)} FBU</span>
                 </div>
               )}
               
-              <div className="total-row">
+              <div className="total-row text-slate-700 dark:text-slate-300">
                 <span>TVA:</span>
                 <span>{calculateTotalTax().toFixed(0)} FBU</span>
               </div>
             </div>
             
-            <div className="double-divider"></div>
+            <div className="double-divider border-slate-400 dark:border-slate-500"></div>
             
-            <div className="total-row final-total">
+            <div className="total-row final-total text-slate-800 dark:text-slate-100">
               <span className="bold large">TOTAL:</span>
               <span className="bold large">{calculateTotal().toFixed(0)} FBU</span>
             </div>
             
-            <div className="divider"></div>
+            <div className="divider border-slate-300 dark:border-slate-600"></div>
             
             {/* Payment Info */}
-            <div className="spacing center small">
+            <div className="spacing center small text-slate-600 dark:text-slate-400">
               <div>Mode de paiement: {vente.payment_status === 'paid' ? 'Espèces' : 'En attente'}</div>
             </div>
             
             {/* Comments */}
             {vente.commentaire && (
               <div className="spacing">
-                <div className="left small bold">Note:</div>
-                <div className="left small">{vente.commentaire}</div>
+                <div className="left small bold text-slate-700 dark:text-slate-300">Note:</div>
+                <div className="left small text-slate-600 dark:text-slate-400">{vente.commentaire}</div>
               </div>
             )}
             
-            <div className="divider"></div>
+            <div className="divider border-slate-300 dark:border-slate-600"></div>
             
             {/* Footer */}
-            <div className="thank-you center">
-              <div className="bold">MERCI DE VOTRE VISITE!</div>
-              <div className="small">Conservez ce reçu</div>
-              <div className="small">Service client: +1 (555) 123-4567</div>
+            <div className="thank-you center text-slate-700 dark:text-slate-300">
+              <div className="bold text-slate-800 dark:text-slate-200">MERCI DE VOTRE VISITE!</div>
+              <div className="small text-slate-600 dark:text-slate-400">Conservez ce reçu</div>
+              <div className="small text-slate-600 dark:text-slate-400">Service client: +1 (555) 123-4567</div>
             </div>
             
             {/* Cut line indicator */}
-            <div style={{ marginTop: '10mm', textAlign: 'center', fontSize: '10px' }}>- - - - - - - - - - - - - - -</div>
+            <div style={{ marginTop: '10mm', textAlign: 'center', fontSize: '10px' }} className="text-slate-400 dark:text-slate-500">- - - - - - - - - - - - - - -</div>
           </div>
         </div>
       </DialogContent>
