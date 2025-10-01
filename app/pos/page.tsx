@@ -528,15 +528,15 @@ Paramètres
                                 const finalTotal = lineTotal - discountAmount
 
                                 return (
-                                  <TableRow key={item.id} className="border-slate-200 hover:bg-white">
+                                  <TableRow key={item.id} className="border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700">
                                     <TableCell>
                                       <div className="flex items-center space-x-3">
                                         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
                                           {index + 1}
                                         </div>
                                         <div>
-                                          <p className="font-medium text-slate-800">{item.name}</p>
-                                          <p className="text-sm text-slate-500 flex items-center">
+                                          <p className="font-medium text-slate-800 dark:text-slate-200">{item.name}</p>
+                                          <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center">
                                             <DollarSign className="h-3 w-3 mr-1" />
                                             {item.price.toFixed(2)} FBU each
                                           </p>
@@ -544,38 +544,38 @@ Paramètres
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
+                                      <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-600 rounded-lg p-1">
                                         <Button
                                           size="sm"
                                           variant="ghost"
                                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                          className="h-7 w-7 p-0 hover:bg-red-100"
+                                          className="h-7 w-7 p-0 hover:bg-red-100 dark:hover:bg-red-900/30"
                                         >
-                                          <Minus className="h-3 w-3 text-red-600" />
+                                          <Minus className="h-3 w-3 text-red-600 dark:text-red-400" />
                                         </Button>
-                                        <span className="w-8 text-center font-semibold text-slate-800">{item.quantity}</span>
+                                        <span className="w-8 text-center font-semibold text-slate-800 dark:text-slate-200">{item.quantity}</span>
                                         <Button
                                           size="sm"
                                           variant="ghost"
                                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                          className="h-7 w-7 p-0 hover:bg-green-100"
+                                          className="h-7 w-7 p-0 hover:bg-green-100 dark:hover:bg-green-900/30"
                                         >
-                                          <Plus className="h-3 w-3 text-green-600" />
+                                          <Plus className="h-3 w-3 text-green-600 dark:text-green-400" />
                                         </Button>
                                       </div>
                                     </TableCell>
-                                    <TableCell className="font-medium">{item.price.toFixed(2)} FBU</TableCell>
+                                    <TableCell className="font-medium text-slate-800 dark:text-slate-200">{item.price.toFixed(2)} FBU</TableCell>
                                     <TableCell>
                                       <Input
                                         type="number"
                                         value={item.discount}
                                         onChange={(e) => updateDiscount(item.id, Number(e.target.value))}
-                                        className="w-16 text-center bg-slate-50 border-slate-200"
+                                        className="w-16 text-center bg-slate-50 dark:bg-slate-600 border-slate-200 dark:border-slate-500 text-slate-800 dark:text-slate-200"
                                         min="0"
                                         max="100"
                                       />
                                     </TableCell>
-                                    <TableCell className="font-bold text-slate-800">
+                                    <TableCell className="font-bold text-slate-800 dark:text-slate-200">
                                       {finalTotal.toFixed(2)} FBU
                                     </TableCell>
                                     <TableCell>
@@ -583,7 +583,7 @@ Paramètres
                                         size="sm" 
                                         variant="ghost" 
                                         onClick={() => removeFromCart(item.id)}
-                                        className="hover:bg-red-100 text-red-600"
+                                        className="hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400"
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
@@ -594,59 +594,6 @@ Paramètres
                         </TableBody>
                       </Table>
                     </div>
-                    
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between border-t bg-white px-4 py-3 rounded-b-lg">
-                        <div className="flex items-center text-sm text-slate-600">
-                          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredVentes.length)} of {filteredVentes.length} sales
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                          >
-                            Previous
-                          </Button>
-                          <div className="flex items-center space-x-1">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                              let pageNumber;
-                              if (totalPages <= 5) {
-                                pageNumber = i + 1;
-                              } else if (currentPage <= 3) {
-                                pageNumber = i + 1;
-                              } else if (currentPage >= totalPages - 2) {
-                                pageNumber = totalPages - 4 + i;
-                              } else {
-                                pageNumber = currentPage - 2 + i;
-                              }
-                              
-                              return (
-                                <Button
-                                  key={pageNumber}
-                                  variant={currentPage === pageNumber ? "default" : "outline"}
-                                  size="sm"
-                                  className="w-8 h-8 p-0"
-                                  onClick={() => setCurrentPage(pageNumber)}
-                                >
-                                  {pageNumber}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                          >
-                            Next
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
                   </CardContent>
@@ -983,29 +930,29 @@ Paramètres
                               {vente.id && expandedRows.has(vente.id) && (
                                 <TableRow>
                                   <TableCell colSpan={9} className="p-0">
-                                    <div className="bg-slate-100 p-4">
-                                      <h4 className="font-semibold text-slate-800 mb-3 flex items-center">
-                                        <Package className="h-4 w-4 mr-2" />
+                                    <div className="bg-slate-100 dark:bg-slate-700 p-4">
+                                      <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center">
+                                        <Package className="h-4 w-4 mr-2 text-slate-600 dark:text-slate-400" />
                                         Articles de la Vente ({vente.lignes?.length || 0})
                                       </h4>
                                       {vente.lignes && vente.lignes.length > 0 ? (
                                         <div className="grid gap-2">
                                           {vente.lignes.map((ligne) => (
-                                            <div key={ligne.id} className="flex items-center justify-between bg-white p-3 rounded border">
+                                            <div key={ligne.id} className="flex items-center justify-between bg-white dark:bg-slate-600 p-3 rounded border border-slate-200 dark:border-slate-500">
                                               <div className="flex-1">
-                                                <p className="font-medium text-slate-800">{ligne.produit}</p>
-                                                <div className="flex items-center space-x-4 text-sm text-slate-600 mt-1">
+                                                <p className="font-medium text-slate-800 dark:text-slate-200">{ligne.produit}</p>
+                                                <div className="flex items-center space-x-4 text-sm text-slate-600 dark:text-slate-300 mt-1">
                                                   <span>Qté: {ligne.quantite}</span>
                                                   <span>Unitaire: {parseFloat(ligne.prix_unitaire_ht || '0').toFixed(2)} FBU</span>
                                                   <span>TVA: {ligne.taux_tva}%</span>
                                                   {ligne.remise_pourcentage !== '0' && <span>Remise: {ligne.remise_pourcentage}%</span>}
-                                                  <span className="font-medium">Total: {parseFloat(ligne.montant_ttc || '0').toFixed(2)} FBU</span>
+                                                  <span className="font-medium text-slate-800 dark:text-slate-200">Total: {parseFloat(ligne.montant_ttc || '0').toFixed(2)} FBU</span>
                                                 </div>
                                               </div>
                                               <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="bg-red-50 hover:bg-red-100 border-red-200 text-red-700 ml-4"
+                                                className="bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-800/50 border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 ml-4"
                                                 onClick={(e) => {
                                                   e.stopPropagation()
                                                   ligne.id && handleRemoveItem(vente, ligne.id)
@@ -1018,7 +965,7 @@ Paramètres
                                           ))}
                                         </div>
                                       ) : (
-                                        <p className="text-slate-500 text-center py-4">Aucun article dans cette vente</p>
+                                        <p className="text-slate-500 dark:text-slate-400 text-center py-4">Aucun article dans cette vente</p>
                                       )}
                                     </div>
                                   </TableCell>
@@ -1033,14 +980,15 @@ Paramètres
                   
                   {/* Pagination Controls */}
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t bg-white px-4 py-3 rounded-b-lg">
-                      <div className="flex items-center text-sm text-slate-600">
+                    <div className="flex items-center justify-between border-t bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 px-4 py-3 rounded-b-lg">
+                      <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
                         Affichage de {(currentPage - 1) * itemsPerPage + 1} à {Math.min(currentPage * itemsPerPage, filteredVentes.length)} sur {filteredVentes.length} ventes
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
+                          className="border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                           onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                           disabled={currentPage === 1}
                         >
@@ -1064,7 +1012,11 @@ Paramètres
                                 key={pageNumber}
                                 variant={currentPage === pageNumber ? "default" : "outline"}
                                 size="sm"
-                                className="w-8 h-8 p-0"
+                                className={`w-8 h-8 p-0 ${
+                                  currentPage === pageNumber 
+                                    ? "bg-blue-600 dark:bg-blue-700 text-white" 
+                                    : "border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                                }`}
                                 onClick={() => setCurrentPage(pageNumber)}
                               >
                                 {pageNumber}
@@ -1075,6 +1027,7 @@ Paramètres
                         <Button
                           variant="outline"
                           size="sm"
+                          className="border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                           onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                           disabled={currentPage === totalPages}
                         >
