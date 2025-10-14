@@ -1,6 +1,7 @@
 export interface VenteLigne {
   id?: string;
   produit: string;
+  produit_nom?: string;
   unite: "piece" | "kg" | "litre" | "metre";
   quantite: number;
   prix_unitaire_ht: string;

@@ -38,7 +38,7 @@ export const PurchaseOrderService = {
       const response = await axiosInstance.post('/api/commandes-fournisseurs/', orderData);
       return response.data;
     } catch (error) {
-      console.error('Error creating purchase order:', error);
+      console.log('Error creating purchase order:', error);
       throw error;
     }
   },

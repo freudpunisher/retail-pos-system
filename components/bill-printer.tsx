@@ -204,7 +204,7 @@ export function BillPrinter({ vente, client, isOpen, onClose }: BillPrinterProps
 
                 return (
                   <div key={index} className="item-row">
-                    <div className="item-name text-slate-800 dark:text-slate-200">{line.produit}</div>
+                    <div className="item-name text-slate-800 dark:text-slate-200">{line.produit_nom}</div>
                     <div className="item-details text-slate-700 dark:text-slate-300">
                       <span>{line.quantite} x {Number(line.prix_unitaire_ht).toFixed(0)} FBU</span>
                       <span className="right bold text-slate-800 dark:text-slate-200">{finalTotal.toFixed(0)} FBU</span>

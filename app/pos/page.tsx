@@ -14,7 +14,6 @@ import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Search,
-  Scan,
   Plus,
   Minus,
   Trash2,
@@ -25,7 +24,6 @@ import {
   RotateCcw,
   Package,
   Users,
-  TrendingUp,
   Clock,
   AlertCircle,
   CheckCircle2,
@@ -55,7 +53,7 @@ import { Stock } from "@/types/stock.types"
 import { toast } from "sonner"
 
 // Constants
-const POINT_VENTE_ID = "460c730f-7c08-45ee-9a71-6dea36241819"
+const POINT_VENTE_ID = "07cf7485-4075-4809-a6a6-a7ddbcc6f426"
 const VENDEUR_ID = "default-vendeur"
 const DEVICE_ID = "pos-terminal-001"
 
@@ -350,60 +348,6 @@ Paramètres
                         className="pl-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-600 transition-colors"
                       />
                     </div>
-                    <Button variant="outline" className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 dark:from-blue-900/50 dark:to-indigo-900/50 dark:hover:from-blue-800/50 dark:hover:to-indigo-800/50 dark:border-blue-700">
-                      <Scan className="h-4 w-4 mr-2" />
-                      Scanner Code-barres
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center text-slate-800 dark:text-slate-200">
-                      <Package className="h-5 w-5 mr-2 text-green-500 dark:text-green-400" />
-                      Aperçu du Stock
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <Button
-                        variant="outline"
-                        onClick={() => setSearchTerm("")}
-                        className="justify-start w-full bg-gradient-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 dark:from-slate-700 dark:to-slate-600 dark:hover:from-slate-600 dark:hover:to-slate-500"
-                      >
-                        <Package className="h-4 w-4 mr-2" />
-                        Tous les Produits
-                      </Button>
-                      <div className="grid grid-cols-1 gap-2 mt-4">
-                        <div className="flex items-center justify-between p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
-                          <div className="flex items-center">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 mr-2" />
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Disponible</span>
-                          </div>
-                          <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-200">
-                            {stocks.filter(s => Number(s.quantite_disponible) > 0).length}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/30 rounded-lg">
-                          <div className="flex items-center">
-                            <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400 mr-2" />
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">En Rupture</span>
-                          </div>
-                          <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-800/50 dark:text-red-200">
-                            {stocks.filter(s => Number(s.quantite_disponible) <= 0).length}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                          <div className="flex items-center">
-                            <TrendingUp className="h-4 w-4 text-blue-500 dark:text-blue-400 mr-2" />
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Produits</span>
-                          </div>
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-800/50 dark:text-blue-200">
-                            {stocks.length}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
 
@@ -513,10 +457,10 @@ Paramètres
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Produit</TableHead>
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Qté</TableHead>
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Prix</TableHead>
-                                <TableHead className="text-slate-700 dark:text-slate-300 font-semibold flex items-center">
+                                {/* <TableHead className="text-slate-700 dark:text-slate-300 font-semibold flex items-center">
                                   <Percent className="h-4 w-4 mr-1" />
                                   Remise
-                                </TableHead>
+                                </TableHead> */}
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Total</TableHead>
                                 <TableHead></TableHead>
                               </TableRow>
@@ -565,7 +509,7 @@ Paramètres
                                       </div>
                                     </TableCell>
                                     <TableCell className="font-medium text-slate-800 dark:text-slate-200">{item.price.toFixed(2)} FBU</TableCell>
-                                    <TableCell>
+                                    {/* <TableCell>
                                       <Input
                                         type="number"
                                         value={item.discount}
@@ -574,7 +518,7 @@ Paramètres
                                         min="0"
                                         max="100"
                                       />
-                                    </TableCell>
+                                    </TableCell> */}
                                     <TableCell className="font-bold text-slate-800 dark:text-slate-200">
                                       {finalTotal.toFixed(2)} FBU
                                     </TableCell>
@@ -591,18 +535,18 @@ Paramètres
                                   </TableRow>
                                 )
                               })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
 
               {/* Enhanced Right Panel - Customer & Payment */}
               <div className="col-span-3 space-y-4">
-                <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                {/* <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center text-slate-800 dark:text-slate-200">
                       <Users className="h-5 w-5 mr-2 text-indigo-500 dark:text-indigo-400" />
@@ -648,7 +592,7 @@ Paramètres
                       </div>
                     )}
                   </CardContent>
-                </Card>
+                </Card> */}
 
                 <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                   <CardHeader className="pb-3">
@@ -667,7 +611,7 @@ Paramètres
                         <span className="font-semibold text-slate-800 dark:text-slate-200">{calculateSubtotal().toFixed(2)} FBU</span>
                       </div>
                       
-                      <div className="flex justify-between items-center p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
+                      {/* <div className="flex justify-between items-center p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
                         <span className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
                           <Percent className="h-4 w-4 mr-2 text-orange-500 dark:text-orange-400" />
                           Remise Globale:
@@ -683,7 +627,7 @@ Paramètres
                           />
                           <span className="text-orange-600 dark:text-orange-400 font-medium">%</span>
                         </div>
-                      </div>
+                      </div> */}
                       
                       <div className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                         <span className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -940,7 +884,7 @@ Paramètres
                                           {vente.lignes.map((ligne) => (
                                             <div key={ligne.id} className="flex items-center justify-between bg-white dark:bg-slate-600 p-3 rounded border border-slate-200 dark:border-slate-500">
                                               <div className="flex-1">
-                                                <p className="font-medium text-slate-800 dark:text-slate-200">{ligne.produit}</p>
+                                                <p className="font-medium text-slate-800 dark:text-slate-200">{ligne.produit_nom}</p>
                                                 <div className="flex items-center space-x-4 text-sm text-slate-600 dark:text-slate-300 mt-1">
                                                   <span>Qté: {ligne.quantite}</span>
                                                   <span>Unitaire: {parseFloat(ligne.prix_unitaire_ht || '0').toFixed(2)} FBU</span>
