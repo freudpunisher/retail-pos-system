@@ -45,21 +45,10 @@ export default function LoginPage() {
       localStorage.setItem("refresh_token", refresh)
       localStorage.setItem("user", JSON.stringify(user))
 
-      // Role-based redirection
-      switch (user.role) {
-        case RoleEnum.ADMIN:
-        case RoleEnum.MANAGER:
-          router.push("/") // Redirect to admin/manager dashboard
-          break
-        case RoleEnum.CASHIER:
-          router.push("/") // Redirect to POS for cashiers
-          break
-        case RoleEnum.STOCK_MANAGER:
-          router.push("/") // Redirect to stock management
-          break
-        default:
-          router.push("/") // Fallback redirect
-      }
+      document.cookie = `access_token=${access}; path=/; secure; samesite=strict`;
+
+      router.push("/") // Redirect to admin/manager dashboard
+      
     } catch (error: any) {
       console.error("Login error:", error)
       setError(
@@ -68,6 +57,8 @@ export default function LoginPage() {
       )
       setIsLoading(false)
     }
+      setIsLoading(false)
+
   }
 
   return (

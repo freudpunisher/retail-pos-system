@@ -1,12 +1,12 @@
 import axiosInstance from '../lib/axiosInstance';
 import {
-  StockMovementResponse,
-  CreateStockMovementRequest,
-  UpdateStockMovementRequest,
-  Stock,
-  Produit,
-  PointVente,
-  User,
+    StockMovementResponse,
+    CreateStockMovementRequest,
+    UpdateStockMovementRequest,
+    Stock,
+    Produit,
+    PointVente,
+    User, StockMovementLigne,
 } from '../types/StockMovement';
 
 export const StockMovementService = {
@@ -28,6 +28,16 @@ export const StockMovementService = {
     } catch (error) {
       console.error(`Error fetching stock movement with id ${id}:`, error);
       throw error;
+    }
+  },
+
+  getLigneStockMovementById: async (id: string): Promise<StockMovementLigne> => {
+    try {
+        const response = await axiosInstance.get(`/api/mouvements-stock/${id}/`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching stock movement with id ${id}:`, error);
+        throw error;
     }
   },
 

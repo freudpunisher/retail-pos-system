@@ -1,7 +1,6 @@
-
 import { NextResponse, NextRequest } from "next/server";
 import { RoleEnum } from "@/types/user";
-import  axiosInstance from "@/lib/axiosInstance";
+import axiosInstance from "@/lib/axiosInstance";
 
 // Define public paths that don't require authentication
 const PUBLIC_PATHS = ["/login"];
@@ -9,8 +8,8 @@ const PUBLIC_PATHS = ["/login"];
 // API endpoint to fetch user details
 const fetchUser = async (token: string) => {
   try {
-    const response = await axiosInstance.get("/api/auth/me", {
-      headers: { Authorization: `Token ${token}` },
+    const response = await axiosInstance.get("/api/me/", {
+      headers: { Authorization: `Bearer ${token}` },
     });
     return response.data.user; // Expected: { id, username, email, phone, role, point_vente, is_active, last_login }
   } catch (error) {
@@ -27,8 +26,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get token from Authorization header
-  const token = request.headers.get("authorization")?.replace("Bearer ", "");
+  // Get token from cookies
+  const token = request.cookies.get("access_token")?.value;
+  console.log("Middleware - Token:", token);
   if (!token) {
     // Redirect to login if no token
     return NextResponse.redirect(new URL("/login", request.url));
@@ -42,12 +42,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check for cashier accessing /pos with null point_vente
-  if (user.role === RoleEnum.CASHIER && pathname.startsWith("/pos")) {
-    if (!user.point_vente) {
-      // Redirect to an unauthorized page or return a 403 response
-      return NextResponse.redirect(new URL("/unauthorized", request.url));
-    }
-  }
+  // if (user.role === RoleEnum.CASHIER && pathname.startsWith("/pos")) {
+  //   if (!user.point_vente) {
+  //     // Redirect to an unauthorized page
+  //     return NextResponse.redirect(new URL("/unauthorized", request.url));
+  //   }
+  // }
 
   // Allow access for valid users
   return NextResponse.next();

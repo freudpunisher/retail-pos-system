@@ -24,8 +24,19 @@ export interface Product {
   categorie: string;
 }
 
-export interface ProductResponse extends Product {
-  id: string;
-  created_at: string;
-  updated_at: string;
+export interface ProductResponse {
+    id: string
+    nom: string
+    description: string
+    code_barre: string
+    reference: string
+    unite_mesure: string
+    prix_achat: string
+    prix_vente: string
+    taux_tva: string
+    stock_minimum: number
+    stock_maximum: number
+    is_active: boolean
+    has_expiry: boolean
+    categorie: string
 }

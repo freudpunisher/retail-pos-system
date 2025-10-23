@@ -1,19 +1,23 @@
 export interface Stock {
-  id: string;
-  produit: string;
-  produit_nom: string;
-  point_vente: string;
-  quantite_actuelle: number;
-  quantite_reservee: number;
-  date_derniere_entree: string;
-  date_derniere_sortie: string;
-  updated_at: string;
-  quantite_disponible: string;
+    id: string;
+    produit: string;
+    produit_nom: string;
+    produit_reference: string;
+    categorie_nom: string;
+    point_vente: string;
+    point_vente_nom: string;
+    quantite_actuelle: number;
+    quantite_reservee: number;
+    date_derniere_entree: string | null;
+    date_derniere_sortie: string | null;
+    updated_at: string;
+    quantite_disponible: number;
 }
 
 export interface StockFilters {
   point_vente?: string;
   produit?: string;
+  produit_nom: string;
   quantite_min?: number;
   page?: number;
   limit?: number;

@@ -30,3 +30,11 @@ export interface CreateUserRequest {
   role: RoleEnum;
   password: string;
 }
+
+export interface UseUsersResult {
+    users: User[] | null;
+    loading: boolean;
+    error: string | null;
+    fetchUsers: () => Promise<void>;
+    refetch: () => Promise<void>;
+}

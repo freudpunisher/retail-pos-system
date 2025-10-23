@@ -1,42 +1,45 @@
-import axios from 'axios';
-import { TransfertStock, CreateTransfertStock, UpdateTransfertStock, TransfertStockLigne } from '@/types/transfertsStock';
+import { TransfertStock, CreateTransfertStock, UpdateTransfertStock } from "@/types/transfertsStock"
 
-const API_URL = 'http://127.0.0.1:8000/api/transferts-stock/';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
 
-export const getTransfertsStock = async (): Promise<TransfertStock[]> => {
-    const response = await axios.get(API_URL);
-    return response.data;
-};
+// 🔹 Liste des transferts
+export async function fetchTransferts(): Promise<TransfertStock[]> {
+    const res = await fetch(`${API_URL}api/transferts-stock/`)
+    if (!res.ok) throw new Error("Erreur lors du chargement des transferts")
+    return res.json()
+}
 
-export const createTransfertStock = async (data: CreateTransfertStock): Promise<TransfertStock> => {
-    const response = await axios.post(API_URL, data);
-    return response.data;
-};
+// 🔹 Détails d’un transfert
+export async function fetchTransfertById(id: string): Promise<TransfertStock> {
+    const res = await fetch(`${API_URL}api/transferts-stock/${id}/`)
+    if (!res.ok) throw new Error("Transfert introuvable")
+    return res.json()
+}
 
-export const updateTransfertStock = async (id: string, data: UpdateTransfertStock): Promise<TransfertStock> => {
-    const response = await axios.put(`${API_URL}${id}/`, data);
-    return response.data;
-};
+// 🔹 Création d’un transfert (avec lignes)
+export async function createTransfert(data: CreateTransfertStock): Promise<TransfertStock> {
+    const res = await fetch(`${API_URL}api/transferts-stock/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+        const err = await res.json()
+        throw new Error(`Erreur lors de la création du transfert: ${JSON.stringify(err)}`)
+    }
+    return res.json()
+}
 
-export const deleteTransfertStock = async (id: string): Promise<void> => {
-    await axios.delete(`${API_URL}${id}/`);
-};
-
-export const getTransfertStockLignes = async (transfertId: string): Promise<TransfertStockLigne[]> => {
-    const response = await axios.get(`${API_URL}${transfertId}/lignes/`);
-    return response.data;
-};
-
-export const createTransfertStockLigne = async (transfertId: string, data: TransfertStockLigne): Promise<TransfertStockLigne> => {
-    const response = await axios.post(`${API_URL}${transfertId}/lignes/`, data);
-    return response.data;
-};
-
-export const updateTransfertStockLigne = async (transfertId: string, ligneId: string, data: TransfertStockLigne): Promise<TransfertStockLigne> => {
-    const response = await axios.put(`${API_URL}${transfertId}/lignes/${ligneId}/`, data);
-    return response.data;
-};
-
-export const deleteTransfertStockLigne = async (transfertId: string, ligneId: string): Promise<void> => {
-    await axios.delete(`${API_URL}${transfertId}/lignes/${ligneId}/`);
-};
+// 🔹 Mise à jour d’un transfert
+export async function updateTransfert(id: string, data: UpdateTransfertStock): Promise<TransfertStock> {
+    const res = await fetch(`${API_URL}api/transferts-stock/${id}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+        const err = await res.json()
+        throw new Error(`Erreur lors de la mise à jour du transfert: ${JSON.stringify(err)}`)
+    }
+    return res.json()
+}
