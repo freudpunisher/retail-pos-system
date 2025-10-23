@@ -4,54 +4,54 @@ import { PointVenteResponse, CreatePointVenteRequest, UpdatePointVenteRequest } 
 
 export const usePointsVente = () => {
   const [pointsVente, setPointsVente] = useState<PointVenteResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [pointsVenteLoading, setPointsVenteLoadingLoading] = useState(false);
+  const [pointsVenteError, setPointsVenteErrorError] = useState<string | null>(null);
 
   const fetchPointsVente = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setPointsVenteLoadingLoading(true);
+    setPointsVenteErrorError(null);
     try {
       const data = await pointVenteService.getPointsVente();
       setPointsVente(data);
     } catch (err) {
-      setError('Failed to fetch points of sale');
+      setPointsVenteErrorError('Failed to fetch points of sale');
     } finally {
-      setLoading(false);
+      setPointsVenteLoadingLoading(false);
     }
   }, []);
 
   const fetchPointVenteById = useCallback(async (id: string) => {
-    setLoading(true);
-    setError(null);
+    setPointsVenteLoadingLoading(true);
+    setPointsVenteErrorError(null);
     try {
       const data = await pointVenteService.getPointVenteById(id);
       return data;
     } catch (err) {
-      setError(`Failed to fetch point of sale with id ${id}`);
+      setPointsVenteErrorError(`Failed to fetch point of sale with id ${id}`);
       throw err;
     } finally {
-      setLoading(false);
+      setPointsVenteLoadingLoading(false);
     }
   }, []);
 
   const createPointVente = useCallback(async (pointVenteData: CreatePointVenteRequest) => {
-    setLoading(true);
-    setError(null);
+    setPointsVenteLoadingLoading(true);
+    setPointsVenteErrorError(null);
     try {
       const newPointVente = await pointVenteService.createPointVente(pointVenteData);
       setPointsVente((prev) => [...prev, newPointVente]);
       return newPointVente;
     } catch (err) {
-      setError('Failed to create point of sale');
+      setPointsVenteErrorError('Failed to create point of sale');
       throw err;
     } finally {
-      setLoading(false);
+      setPointsVenteLoadingLoading(false);
     }
   }, []);
 
   const updatePointVente = useCallback(async (id: string, pointVenteData: UpdatePointVenteRequest) => {
-    setLoading(true);
-    setError(null);
+    setPointsVenteLoadingLoading(true);
+    setPointsVenteErrorError(null);
     try {
       const updatedPointVente = await pointVenteService.updatePointVente(id, pointVenteData);
       setPointsVente((prev) =>
@@ -59,30 +59,30 @@ export const usePointsVente = () => {
       );
       return updatedPointVente;
     } catch (err) {
-      setError(`Failed to update point of sale with id ${id}`);
+      setPointsVenteErrorError(`Failed to update point of sale with id ${id}`);
       throw err;
     } finally {
-      setLoading(false);
+      setPointsVenteLoadingLoading(false);
     }
   }, []);
 
   const deletePointVente = useCallback(async (id: string) => {
-    setLoading(true);
-    setError(null);
+    setPointsVenteLoadingLoading(true);
+    setPointsVenteErrorError(null);
     try {
       await pointVenteService.deletePointVente(id);
       setPointsVente((prev) => prev.filter((point) => point.id !== id));
     } catch (err) {
-      setError(`Failed to delete point of sale with id ${id}`);
+      setPointsVenteErrorError(`Failed to delete point of sale with id ${id}`);
       throw err;
     } finally {
-      setLoading(false);
+      setPointsVenteLoadingLoading(false);
     }
   }, []);
 
   const togglePointVenteActive = useCallback(async (id: string, isActive: boolean) => {
-    setLoading(true);
-    setError(null);
+    setPointsVenteLoadingLoading(true);
+    setPointsVenteErrorError(null);
     try {
       const updatedPointVente = await pointVenteService.togglePointVenteActive(id, isActive);
       setPointsVente((prev) =>
@@ -90,17 +90,17 @@ export const usePointsVente = () => {
       );
       return updatedPointVente;
     } catch (err) {
-      setError(`Failed to toggle active status for point of sale with id ${id}`);
+      setPointsVenteErrorError(`Failed to toggle active status for point of sale with id ${id}`);
       throw err;
     } finally {
-      setLoading(false);
+      setPointsVenteLoadingLoading(false);
     }
   }, []);
 
   return {
     pointsVente,
-    loading,
-    error,
+    pointsVenteLoading,
+    pointsVenteError,
     fetchPointsVente,
     fetchPointVenteById,
     createPointVente,

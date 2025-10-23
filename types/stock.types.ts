@@ -14,6 +14,7 @@ export interface Stock {
 export interface StockFilters {
   point_vente?: string;
   produit?: string;
+  produit_nom: string;
   quantite_min?: number;
   page?: number;
   limit?: number;

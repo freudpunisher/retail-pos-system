@@ -1,35 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
-import { userService } from '../services/userServices';
-import { User } from '../types/user';
-
-interface UseUsersResult {
-  users: User[] | null;
-  loading: boolean;
-  error: string | null;
-  fetchUsers: () => Promise<void>;
-  refetch: () => Promise<void>;
-}
+import {useState, useEffect, useCallback} from 'react';
+import {userService} from '../services/userServices';
+import {User, UseUsersResult} from '../types/user';
 
 export const useUsers = (): UseUsersResult => {
-  const [users, setUsers] = useState<User[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+    const [users, setUsers] = useState<User[]>([]);
+    const [userLoading, setUserLoading] = useState<boolean>(true);
+    const [userError, setUserError] = useState<string | null>(null);
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await userService.getUsers();
-      setUsers(data);
-      setLoading(false);
-    } catch (err) {
-      setError('Failed to fetch users');
-      setLoading(false);
-    }
-  }, []);
+    const fetchUsers = useCallback(async () => {
+        try {
+            setUserLoading
+            (true);
+            const data = await userService.getUsers();
+            setUsers(data);
+            setUserLoading
+            (false);
+        } catch (err) {
+            setUserError('Failed to fetch users');
+            setUserLoading
+            (false);
+        }
+    }, []);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
 
-  return { users, loading, error, refetch: fetchUsers , fetchUsers };
+    // @ts-ignore
+    return {users, userLoading, userError, refetch: fetchUsers, fetchUsers};
 };

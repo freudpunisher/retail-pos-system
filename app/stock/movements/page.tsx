@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect} from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
+import toast from 'react-hot-toast';
 import { POSLayout } from "@/components/pos-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import {
 } from "lucide-react";
 import { useStockMovements } from "@/hooks/useStockMovements";
 import { StockMovementService } from "@/services/stockMovementService";
+import { StockService } from "@/services/stockService";
 import {
     StockMovementResponse,
     StockMovementFormData,
@@ -64,6 +66,11 @@ const unite_produit = [
 ];
 
 export default function MovementsPage() {
+    const [loadingInitial, setLoadingInitial] = useState(true);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+    const [produitStock, setProduitStock] = useState<Stock[]>([]);
+    const [selectedPointVente, setSelectedPointVente] = useState<string | null>(null);
+
     const {
         movements,
         stocks,
@@ -94,10 +101,8 @@ export default function MovementsPage() {
     const { register, control, handleSubmit, reset, formState: { errors }, setValue } = useForm<StockMovementFormData>({
         defaultValues: {
             type_mouvement: "entree",
-            stock: "",
+            point_vente: "",
             reference_document: "",
-            reference: "",
-            utilisateur: "",
             lignes: [],
         },
     });
@@ -108,39 +113,73 @@ export default function MovementsPage() {
     });
 
     useEffect(() => {
-        fetchStockMovements();
-        fetchStocks();
-        fetchProduits();
-        fetchPointsVente();
-        fetchUsers();
-    }, [fetchStockMovements, fetchStocks, fetchProduits, fetchPointsVente, fetchUsers]);
+        const loadInitialData = async () => {
+            setLoadingInitial(true);  // Global loading
+            try {
+                await Promise.all([  // Parallélise pour perf
+                    fetchStockMovements(),
+                    fetchStocks(),
+                    fetchProduits(),
+                    fetchPointsVente(),
+                    fetchUsers(),
+                ]);
+                toast.success('Données chargées');  // UX feedback
+            } catch (err) {
+                console.error('Erreur chargement initial:', err);
+                toast.error('Erreur lors du chargement des données');
+            } finally {
+                setLoadingInitial(false);
+            }
+        };
+
+        loadInitialData();
+    }, []);
 
     useEffect(() => {
-        if (selectedMovementId || editingMovementId) {
+        const id = selectedMovementId || editingMovementId;  // ID unique
+
+        if (id) {
             const fetchMovementDetails = async () => {
+                setLoadingDetails(true);
                 try {
-                    const movement = await StockMovementService.getStockMovementById(selectedMovementId || editingMovementId!);
+                    const movement = await StockMovementService.getStockMovementById(id);
                     setDetailedMovement(movement);
-                    if (editingMovementId) {
+
+                    if (editingMovementId) {  // Mode edit seulement
                         setValue("type_mouvement", movement.type_mouvement);
-                        setValue("stock", movement.stock);
+                        setValue("point_vente", movement.point_vente);
                         setValue("reference_document", movement.reference_document || "");
-                        setValue("reference", movement.reference || "");
-                        setValue("utilisateur", movement.utilisateur || "");
-                        setValue("lignes", movement.lignes?.map(ligne => ({
-                            produit: ligne.produit,
-                            unite: ligne.unite,
-                            quantite_mouvement: ligne.quantite_mouvement,
-                            prix_unitaire: parseFloat(ligne.prix_unitaire) || 0,
-                        })) || []);
+
+                        // Mapping lignes robuste
+                        const lignesForm = movement.lignes?.map((ligne) => ({
+                            produit: ligne.produit?.id || ligne.produit || null,  // Gère ID ou objet
+                            unite: ligne.unite || 'piece',  // Fallback
+                            quantite_mouvement: ligne.quantite_mouvement || 0,
+                            prix_unitaire: parseFloat(ligne.prix_unitaire?.toString() || '0') || 0,
+                            montant_ligne: parseFloat(ligne.montant_ligne?.toString() || '0') || 0,
+                        })) || [];
+                        setValue("lignes", lignesForm);
                     }
-                } catch (err) {
+                } catch (err: any) {
                     console.error("Error fetching movement details:", err);
+                    toast.error('Erreur chargement détails mouvement');
+                    setDetailedMovement(null);  // Reset sur erreur
+                } finally {
+                    setLoadingDetails(false);
                 }
             };
+
             fetchMovementDetails();
+        } else {
+            // Reset si IDs null (ex. : fermeture modal)
+            setDetailedMovement(null);
+            setLoadingDetails(false);
+            // Optionnel : reset form en mode edit
+            if (editingMovementId !== undefined) {
+                // reset();  // De useForm, si tu veux clear
+            }
         }
-    }, [selectedMovementId, editingMovementId, setValue]);
+    }, [selectedMovementId, editingMovementId]);
 
     const filteredMovements = movements.filter((movement) => {
         const stock = stocks.find((s) => s.id === movement.stock);
@@ -179,10 +218,8 @@ export default function MovementsPage() {
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleString("fr-FR", {
             year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+            month: "2-digit",
+            day: "2-digit",
         });
     };
 
@@ -252,31 +289,41 @@ export default function MovementsPage() {
                     {errors.type_mouvement && <p className="text-sm text-destructive">{errors.type_mouvement.message}</p>}
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="stock">Stock (Produit & Point de Vente)</Label>
+                    <Label htmlFor="stock">Stock (Point de Vente)</Label>
                     <Controller
-                        name="stock"
+                        name="point_vente"
                         control={control}
-                        rules={{ required: "Stock est requis" }}
+                        rules={{ required: "Point de vente est requis" }}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                                onValueChange={async (value) => {
+                                    field.onChange(value);
+                                    setSelectedPointVente(value);
+
+                                    try {
+                                        const stocks = await StockService.getStockByPointVente(value);
+                                        setProduitStock(stocks);
+                                    } catch (error) {
+                                        console.error("Erreur lors du chargement des produits :", error);
+                                        setProduitStock([]);
+                                    }
+                                }}
+                                value={field.value}
+                            >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionner un stock" />
+                                    <SelectValue placeholder="Sélectionner un point de vente" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {stocks.map((stock) => {
-                                        const produit = produits.find((p) => p.id === stock.produit);
-                                        const pointVente = pointsVente.find((pv) => pv.id === stock.point_vente);
-                                        return (
-                                            <SelectItem key={stock.id} value={stock.id}>
-                                                {produit?.nom || "Inconnu"} - {pointVente?.nom || "Inconnu"}
-                                            </SelectItem>
-                                        );
-                                    })}
+                                    {pointsVente.map((pointvente) => (
+                                        <SelectItem key={pointvente.id} value={pointvente.id}>
+                                            {pointvente.nom}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         )}
                     />
-                    {errors.stock && <p className="text-sm text-destructive">{errors.stock.message}</p>}
+                    {errors.point_vente && <p className="text-sm text-destructive">{errors.point_vente.message}</p>}
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="reference_document">Référence Document</Label>
@@ -286,41 +333,10 @@ export default function MovementsPage() {
                         placeholder="Numéro de référence ou document"
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="reference">Référence</Label>
-                    <Input
-                        id="reference"
-                        {...register("reference")}
-                        placeholder="Référence du mouvement"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="utilisateur">Utilisateur</Label>
-                    <Controller
-                        name="utilisateur"
-                        control={control}
-                        rules={{ required: "Utilisateur est requis" }}
-                        render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionner un utilisateur" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {users.map((user) => (
-                                        <SelectItem key={user.id} value={user.id}>
-                                            {user.nom}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                    {errors.utilisateur && <p className="text-sm text-destructive">{errors.utilisateur.message}</p>}
-                </div>
             </div>
             <div className="space-y-2">
                 <Label>Articles du mouvement</Label>
-                <div className="border rounded-lg bg-background/95">
+                <div className="border rounded-lg bg-background/95 mt-2 pb-2">
                     {fields.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">Aucun article ajouté</p>
                     ) : (
@@ -348,17 +364,23 @@ export default function MovementsPage() {
                                                             <SelectValue placeholder="Sélectionner un produit" />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {produits.map((produit) => (
-                                                                <SelectItem key={produit.id} value={produit.id}>
-                                                                    {produit.nom}
-                                                                </SelectItem>
-                                                            ))}
+                                                            {produitStock.length > 0 ? (
+                                                                produitStock.map((stock) => (
+                                                                    <SelectItem key={stock.produit} value={stock.produit}>
+                                                                        {stock.produit_nom}
+                                                                    </SelectItem>
+                                                                ))
+                                                            ) : (
+                                                                <div className="text-sm text-muted p-2">Aucun produit disponible</div>
+                                                            )}
                                                         </SelectContent>
                                                     </Select>
                                                 )}
                                             />
                                             {errors.lignes?.[index]?.produit && (
-                                                <p className="text-xs text-destructive mt-1">{errors.lignes?.[index]?.produit?.message}</p>
+                                                <p className="text-xs text-destructive mt-1">
+                                                    {errors.lignes?.[index]?.produit?.message}
+                                                </p>
                                             )}
                                         </TableCell>
                                         <TableCell className="py-2">
@@ -416,7 +438,7 @@ export default function MovementsPage() {
                                         <TableCell className="py-2 text-center">
                                             <Button
                                                 type="button"
-                                                variant="ghost"
+                                                variant="outline"
                                                 size="sm"
                                                 onClick={() => remove(index)}
                                             >
@@ -436,9 +458,9 @@ export default function MovementsPage() {
                             // @ts-ignore
                             append({produit: "", quantite_mouvement: 1, unite: "", prix_unitaire: 0});
                         }}
-                        className="mt-4 ml-4"
+                        className="mt-4 ml-2 mb-4"
                     >
-                        <Plus className="h-3 w-3 mr-1" />
+                        <Plus className="h-3 w-3 mr-1 " />
                         Ajouter Article
                     </Button>
                 </div>
@@ -604,7 +626,7 @@ export default function MovementsPage() {
                                     <TableRow>
                                         <TableHead>Type</TableHead>
                                         <TableHead>Référence</TableHead>
-                                        <TableHead>Stock</TableHead>
+                                        <TableHead>Point vente</TableHead>
                                         <TableHead>Réf reçus</TableHead>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Utilisateur</TableHead>
@@ -625,15 +647,22 @@ export default function MovementsPage() {
                                                         {getMovementBadge(movement.type_mouvement)}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>{movement.reference}</TableCell>
-                                                <TableCell>{pointVente?.nom || "Inconnu"}</TableCell>
+                                                <TableCell>{movement.numero_mouvement}</TableCell>
+                                                <TableCell>{movement.point_vente_nom || "Inconnu"}</TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline">{movement.reference_document}</Badge>
                                                 </TableCell>
-                                                <TableCell>{formatDate(movement.created_at)}</TableCell>
+                                                <TableCell>{formatDate(movement.created_at)} </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center space-x-1">
-                                                        <span>{user?.nom || "Inconnu"}</span>
+                                                        <span>
+                                                          {(() => {
+                                                              const prenom = movement.utilisateur_prenom || '';
+                                                              const nom = movement.utilisateur_nom || '';
+                                                              const fullName = [prenom, nom].filter(Boolean).join(' ');  // Filtre les vides et joint avec espace
+                                                              return fullName || 'Nom définie';
+                                                          })()}
+                                                        </span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -710,33 +739,45 @@ export default function MovementsPage() {
                                     <div className="grid grid-cols-3 gap-4 mb-4">
                                         <div className="space-y-2">
                                             <Label>Référence</Label>
-                                            <p>{detailedMovement.reference || "Inconnu"}</p>
+                                            <p>{detailedMovement.numero_mouvement || "Non définie"}</p>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Type de Mouvement</Label>
-                                            <p>{movementTypes.find((t) => t.value === detailedMovement.type_mouvement)?.label || "Inconnu"}</p>
+                                            <p>{movementTypes.find((t) => t.value === detailedMovement.type_mouvement)?.label || "Non définie"}</p>
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Stock</Label>
+                                            <Label>Point de vente</Label>
                                             <p>
                                                 {(() => {
-                                                    const stock = stocks.find((s) => s.id === detailedMovement.stock);
-                                                    const pointVente = pointsVente.find((pv) => pv.id === stock?.point_vente);
-                                                    return pointVente?.nom || "Inconnu";
+                                                    const pointVente = pointsVente.find((pv) => pv.id === detailedMovement.point_vente);
+                                                    if (pointVente) {
+                                                        return pointVente.nom || 'Non définie';
+                                                    }
+                                                    return 'Non définie';
                                                 })()}
                                             </p>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Référence Document</Label>
-                                            <p>{detailedMovement.reference_document || "Aucune"}</p>
+                                            <p>{detailedMovement.reference_document || "Non définie"}</p>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Utilisateur</Label>
-                                            <p>{users.find((u) => u.id === detailedMovement.utilisateur)?.nom || "Inconnu"}</p>
+                                            <p>
+                                                {(() => {
+                                                    const foundUser = users.find((u) => u.id === detailedMovement.utilisateur);
+                                                    if (foundUser) {
+                                                        const prenom = detailedMovement.utilisateur_prenom || '';
+                                                        const nom = detailedMovement.utilisateur_non || '';
+                                                        const fullName = [prenom, nom].filter(Boolean).join(' ');                                                         return fullName || 'Non définie';
+                                                    }
+                                                    return 'Non définie';
+                                                })()}
+                                            </p>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Date de Création</Label>
-                                            <p>{detailedMovement.created_at ? formatDate(detailedMovement.created_at) : "Inconnu"}</p>
+                                            <p>{detailedMovement.created_at ? formatDate(detailedMovement.created_at) : "Non définie"}</p>
                                         </div>
                                     </div>
                                     <div className="space-y-2">
@@ -750,6 +791,7 @@ export default function MovementsPage() {
                                                             <TableHead className="text-foreground font-semibold w-2/5">Unité Mesure</TableHead>
                                                             <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Mouvement</TableHead>
                                                             <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Unitaire</TableHead>
+                                                            <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Total</TableHead>
                                                         </TableRow>
                                                     </TableHeader>
                                                     <TableBody>
@@ -766,6 +808,9 @@ export default function MovementsPage() {
                                                                 </TableCell>
                                                                 <TableCell className="py-2 text-center">
                                                                     {ligne.prix_unitaire}
+                                                                </TableCell>
+                                                                <TableCell className="py-2 text-center">
+                                                                    {ligne.montant_ligne}
                                                                 </TableCell>
                                                             </TableRow>
                                                         ))}

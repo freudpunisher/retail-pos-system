@@ -1,84 +1,51 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-    getTransfertsStock,
-    createTransfertStock,
-    updateTransfertStock,
-    deleteTransfertStock,
-    getTransfertStockLignes,
-    createTransfertStockLigne,
-    updateTransfertStockLigne,
-    deleteTransfertStockLigne,
-} from '@/services/transfertsStockService';
-import { TransfertStock, CreateTransfertStock, UpdateTransfertStock, TransfertStockLigne } from '@/types/transfertsStock';
+import { useState, useCallback } from "react"
+import { TransfertStock, CreateTransfertStock, UpdateTransfertStock } from "@/types/transfertsStock"
+import { fetchTransferts, createTransfert, updateTransfert } from "@/services/transfertsStockService"
 
-export const useTransfertsStock = () => {
-    const queryClient = useQueryClient();
+export function useTransferts() {
+    const [transferts, setTransferts] = useState<TransfertStock[]>([])
+    const [transfertsloading, setTransfertsLoading] = useState(false)
+    const [transfertsError, setTransfertsError] = useState<string | null>(null)
 
-    const transfertsQuery = useQuery<TransfertStock[], Error>({
-        queryKey: ['transfertsStock'],
-        queryFn: getTransfertsStock,
-    });
+    const loadTransferts = useCallback(async () => {
+        setTransfertsLoading(true)
+        try {
+            const data = await fetchTransferts()
+            setTransferts(data)
+        } catch (error: any) {
+            setTransfertsError(error.message)
+        } finally {
+            setTransfertsLoading(false)
+        }
+    }, [])
 
-    const lignesQuery = (transfertId: string | null) =>
-        useQuery<TransfertStockLigne[], Error>({
-            queryKey: ['transfertStockLignes', transfertId],
-            queryFn: () => getTransfertStockLignes(transfertId!),
-            enabled: !!transfertId,
-        });
+    const addTransfert = useCallback(async (payload: CreateTransfertStock) => {
+        setTransfertsLoading(true)
+        try {
+            const newTransfert = await createTransfert(payload)
+            setTransferts((prev) => [newTransfert, ...prev])
+            return newTransfert
+        } catch (err: any) {
+            setTransfertsError(err.message)
+            throw err
+        } finally {
+            setTransfertsLoading(false)
+        }
+    }, [])
 
-    const createTransfertMutation = useMutation<TransfertStock, Error, CreateTransfertStock>({
-        mutationFn: createTransfertStock,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transfertsStock'] });
-        },
-    });
+    const editTransfert = useCallback(async (id: string, payload: UpdateTransfertStock) => {
+        setTransfertsLoading(true)
+        try {
+            const updated = await updateTransfert(id, payload)
+            setTransferts((prev) => prev.map((t) => (t.id === id ? updated : t)))
+            return updated
+        } catch (err: any) {
+            setTransfertsError(err.message)
+            throw err
+        } finally {
+            setTransfertsLoading(false)
+        }
+    }, [])
 
-    const updateTransfertMutation = useMutation<TransfertStock, Error, { id: string; data: UpdateTransfertStock }>({
-        mutationFn: ({ id, data }) => updateTransfertStock(id, data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transfertsStock'] });
-        },
-    });
-
-    const deleteTransfertMutation = useMutation<void, Error, string>({
-        mutationFn: deleteTransfertStock,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['transfertsStock'] });
-        },
-    });
-
-    const createLigneMutation = useMutation<TransfertStockLigne, Error, { transfertId: string; data: TransfertStockLigne }>({
-        mutationFn: ({ transfertId, data }) => createTransfertStockLigne(transfertId, data),
-        onSuccess: (_, { transfertId }) => {
-            queryClient.invalidateQueries({ queryKey: ['transfertStockLignes', transfertId] });
-        },
-    });
-
-    const updateLigneMutation = useMutation<TransfertStockLigne, Error, { transfertId: string; ligneId: string; data: TransfertStockLigne }>({
-        mutationFn: ({ transfertId, ligneId, data }) => updateTransfertStockLigne(transfertId, ligneId, data),
-        onSuccess: (_, { transfertId }) => {
-            queryClient.invalidateQueries({ queryKey: ['transfertStockLignes', transfertId] });
-        },
-    });
-
-    const deleteLigneMutation = useMutation<void, Error, { transfertId: string; ligneId: string }>({
-        mutationFn: ({ transfertId, ligneId }) => deleteTransfertStockLigne(transfertId, ligneId),
-        onSuccess: (_, { transfertId }) => {
-            queryClient.invalidateQueries({ queryKey: ['transfertStockLignes', transfertId] });
-        },
-    });
-
-    return {
-        transferts: transfertsQuery.data || [],
-        isLoading: transfertsQuery.isLoading,
-        error: transfertsQuery.error,
-        fetchTransferts: transfertsQuery.refetch,
-        createTransfert: createTransfertMutation.mutateAsync,
-        updateTransfert: updateTransfertMutation.mutateAsync,
-        deleteTransfert: deleteTransfertMutation.mutateAsync,
-        fetchLignes: lignesQuery,
-        createLigne: createLigneMutation.mutateAsync,
-        updateLigne: updateLigneMutation.mutateAsync,
-        deleteLigne: deleteLigneMutation.mutateAsync,
-    };
-};
+    return { transferts, transfertsloading, transfertsError, loadTransferts, addTransfert, editTransfert }
+}

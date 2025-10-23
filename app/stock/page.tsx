@@ -157,7 +157,6 @@ export default function StockPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Type</TableHead>
                                         <TableHead>Point de vente</TableHead>
                                         <TableHead>Produit</TableHead>
                                         <TableHead>Quantité actuelle</TableHead>
@@ -171,7 +170,6 @@ export default function StockPage() {
                                     {filteredStocks.length > 0 ? (
                                         filteredStocks.map((stock) => (
                                             <TableRow key={stock.id}>
-                                                <TableCell>{stock.type_stock}</TableCell>
                                                 <TableCell>{stock.point_vente_nom}</TableCell>
                                                 <TableCell>{stock.produit_nom}</TableCell>
                                                 <TableCell>{stock.quantite_actuelle}</TableCell>

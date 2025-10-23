@@ -17,7 +17,9 @@ export interface StockMovement {
   stock: string;
   stock_nom: string;
   point_vente_nom: string;
-  utilisateur_non: string;
+  point_vente: string;
+  utilisateur_nom: string;
+  utilisateur_prenom: string;
   reference: string;
   reference_document: string;
   utilisateur: string;
@@ -27,14 +29,16 @@ export interface StockMovement {
 export interface StockMovementFormData {
     type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
     reference_document: string;
-    reference: string;
-    stock: string;
+    numero_mouvement: string;
+    point_vente_nom: string;
+    point_vente: string;
     utilisateur: string;
     lignes: {
         produit: string;
         unite: 'piece' | 'kg' | 'litre' | 'metre' | 'paquet' | 'boite' | 'sac';
         quantite_mouvement: number;
         prix_unitaire: number;
+        montant_ligne: number;
     }[];
 }
 
@@ -42,10 +46,11 @@ export interface StockMovementResponse extends StockMovement {
     id: string;
     type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
     lignes?: StockMovementLigne[];
-    stock_nom: string;
     point_vente_nom: string;
+    point_vente: string;
     utilisateur_non: string;
-    reference: string;
+    utilisateur_prenom: string;
+    numero_mouvement: string;
     reference_document: string;
     utilisateur: string;
     created_at: string;
@@ -53,18 +58,14 @@ export interface StockMovementResponse extends StockMovement {
 
 export interface CreateStockMovementRequest {
     type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
+    point_vente_nom: string;
     reference_document: string;
-    reference: string;
-    stock: string;
-    utilisateur: string;
 }
 
 export interface UpdateStockMovementRequest {
     type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
     reference_document: string;
-    reference: string;
-    stock: string;
-    utilisateur: string;
+    point_vente_nom: string;
 }
 
 export interface Stock {

@@ -12,9 +12,9 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(config => {
   const t = localStorage.getItem('token');
-  // if (t) {
-  //   config.headers.Authorization = `Bearer ${t}`;
-  // }
+  if (t) {
+    config.headers.Authorization = `Bearer ${t}`;
+  }
   return config;
 });
 
@@ -23,7 +23,7 @@ axiosInstance.interceptors.response.use(
   error => {
     if (error.response?.status === 401) {
       console.error('Token expired or unauthorized');
-    //   window.location.href = '/auth'; // instead of router.push('/')
+      window.location.href = '/auth';
     }
     return Promise.reject(error);
   }
