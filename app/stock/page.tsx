@@ -16,15 +16,14 @@ import {
 } from "@/components/ui/select"
 
 import { useStocks } from "@/hooks/useStock"
+import {bgMagenta} from "next/dist/lib/picocolors";
 
 export default function StockPage() {
-    const { stocks, isLoading, error,fetchStocks } = useStocks()
-    // console.log(stocks)
+    const { stocks, loading, error, fetchStocks } = useStocks()
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedType, setSelectedType] = useState<string>("")
     const [selectedPointVente, setSelectedPointVente] = useState<string>("")
     const [selectedProduit, setSelectedProduit] = useState<string>("")
-    // const [selectedStockId, setSelectedStockId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchStocks();
@@ -32,31 +31,32 @@ export default function StockPage() {
 
     // Extraction des valeurs uniques pour les filtres
     const types = useMemo(() => {
-        if (!stocks) return []
-        return Array.from(new Set(stocks.map((s) => s.type_stock || "Non défini")))
+        if (!stocks?.length) return []
+        return Array.from(new Set(stocks.map((s) => s.categorie_nom || "Non défini")))
     }, [stocks])
 
     const pointsVente = useMemo(() => {
-        if (!stocks) return []
-        return Array.from(new Set(stocks.map((s) => s.point_vente_nom)))
+        if (!stocks?.length) return []
+        return Array.from(new Set(stocks.map((s) => s.point_vente)))
     }, [stocks])
 
     const produits = useMemo(() => {
-        if (!stocks) return []
+        if (!stocks?.length) return []
         return Array.from(new Set(stocks.map((s) => s.produit_nom)))
     }, [stocks])
-
 
     // Application des filtres
     const filteredStocks = useMemo(() => {
         return (stocks || []).filter((stock) => {
+            const stockPointVente = stock.point_vente || ''
+            const stockType = stock.categorie_nom || ''
             const matchesSearch =
-                stock.produit_nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                stock.point_vente_nom.toLowerCase().includes(searchTerm.toLowerCase())
+                (stock.produit_nom || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                stockPointVente.toLowerCase().includes(searchTerm.toLowerCase())
 
-            const matchesType = selectedType && selectedType !== "all" ? stock.type_stock === selectedType : true
+            const matchesType = selectedType && selectedType !== "all" ? stockType === selectedType : true
             const matchesPointVente = selectedPointVente && selectedPointVente !== "all"
-                ? stock.point_vente_nom === selectedPointVente
+                ? stockPointVente === selectedPointVente
                 : true
             const matchesProduit = selectedProduit && selectedProduit !== "all"
                 ? stock.produit_nom === selectedProduit
@@ -66,8 +66,7 @@ export default function StockPage() {
         })
     }, [stocks, searchTerm, selectedType, selectedPointVente, selectedProduit])
 
-
-    const formatDate = (dateString?: string) => {
+    const formatDate = (dateString?: string | null) => {
         if (!dateString) return "Non défini"
         return new Date(dateString).toLocaleDateString("fr-FR", {
             year: "numeric",
@@ -76,8 +75,11 @@ export default function StockPage() {
         })
     }
 
-    if (isLoading) return <div className="p-4">Chargement...</div>
-    if (error) return <div className="p-4 text-red-500">Erreur: {(error as Error).message}</div>
+    if (loading) return <div className="p-4">Chargement...</div>
+    // @ts-ignore
+    if (error) {
+        return <div className="p-4 text-red-500">Erreur: {error}</div>
+    }
 
     return (
         <POSLayout currentPath="/stock">
@@ -103,10 +105,10 @@ export default function StockPage() {
                                     />
                                 </div>
 
-                                {/* Filtre par type */}
+                                {/* Filtre par type (catégorie) */}
                                 <Select value={selectedType} onValueChange={setSelectedType}>
                                     <SelectTrigger className="w-48">
-                                        <SelectValue placeholder="Filtrer par type" />
+                                        <SelectValue placeholder="Filtrer par catégorie" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Tous</SelectItem>
@@ -127,7 +129,7 @@ export default function StockPage() {
                                         <SelectItem value="all">Tous</SelectItem>
                                         {pointsVente.map((pv) => (
                                             <SelectItem key={pv} value={pv}>
-                                                {pv}
+                                                {pv}  {/* Affiche l'ID pour l'instant */}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -170,20 +172,18 @@ export default function StockPage() {
                                     {filteredStocks.length > 0 ? (
                                         filteredStocks.map((stock) => (
                                             <TableRow key={stock.id}>
-                                                <TableCell>{stock.point_vente_nom}</TableCell>
+                                                <TableCell>{stock.point_vente_nom}</TableCell>  {/* Utilise l'ID */}
                                                 <TableCell>{stock.produit_nom}</TableCell>
                                                 <TableCell>{stock.quantite_actuelle}</TableCell>
                                                 <TableCell>{stock.quantite_reservee}</TableCell>
-                                                <TableCell>
-                                                    {stock.quantite_actuelle - stock.quantite_reservee}
-                                                </TableCell>
+                                                <TableCell>{stock.quantite_disponible}</TableCell>  {/* Utilise le champ pré-calculé */}
                                                 <TableCell>{formatDate(stock.date_derniere_entree)}</TableCell>
                                                 <TableCell>{formatDate(stock.date_derniere_sortie)}</TableCell>
                                             </TableRow>
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
+                                            <TableCell colSpan={7} className="text-center text-muted-foreground py-6">  {/* Corrigé en 7 */}
                                                 Aucun stock trouvé
                                             </TableCell>
                                         </TableRow>

@@ -2,13 +2,13 @@ import axiosInstance from '../lib/axiosInstance';
 import { StockResponse, Stock } from '../types/stock.types';
 
 export const StockService = {
-    getStocks: async (): Promise<StockResponse[]> => {
+    getStocks: async (): Promise<Stock[]> => {  // Changé en Stock[]
         try {
-          const response = await axiosInstance.get('/api/stocks/');
-          return response.data;
+            const response = await axiosInstance.get('/api/stocks/');
+            return response.data;
         } catch (error) {
-          console.error('Error fetching stocks:', error);
-          throw error;
+            console.error('Error fetching stocks:', error);
+            throw error;
         }
     },
 
@@ -22,24 +22,13 @@ export const StockService = {
         }
     },
 
-
-  getStockById: async (id: string): Promise<StockResponse> => {
-    try {
-      const response = await axiosInstance.get(`/api/stocks/${id}/`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching stock with id ${id}:`, error);
-      throw error;
-    }
-  },
-  getStockBySaleOffPoint: async (pointVenteId: string): Promise<StockResponse> => {
+    getStockById: async (id: string): Promise<StockResponse> => {
         try {
-            const response = await axiosInstance.get(`/api/stocks/?point_vente=${pointVenteId}`);
-    return response.data;
+          const response = await axiosInstance.get(`/api/stocks/${id}/`);
+          return response.data;
         } catch (error) {
-            console.error(`Error fetching stock with id ${id}:`, error);
-            throw error;
+          console.error(`Error fetching stock with id ${id}:`, error);
+          throw error;
         }
-  },
-
+    },
 };
