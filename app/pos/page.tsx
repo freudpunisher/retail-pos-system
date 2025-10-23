@@ -1,6 +1,8 @@
+
 "use client"
 
 import React, { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { POSLayout } from "@/components/pos-layout"
 import { BillPrinter } from "@/components/bill-printer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -51,12 +53,12 @@ import { Client } from "@/types/client.types"
 import { Vente, CreateVentePayload } from "@/types/vente.types"
 import { Stock } from "@/types/stock.types"
 import { toast } from "sonner"
+import { posStockQueryKeys } from "@/hooks/usePOSStocks"
 
 // Constants
 const POINT_VENTE_ID = "07cf7485-4075-4809-a6a6-a7ddbcc6f426"
 const VENDEUR_ID = "default-vendeur"
 const DEVICE_ID = "pos-terminal-001"
-
 
 interface CartItem {
   id: string
@@ -69,6 +71,7 @@ interface CartItem {
 }
 
 export default function POSPage() {
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("sale")
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -267,8 +270,12 @@ export default function POSPage() {
       setGlobalDiscount(0)
       setSelectedCustomer(null)
       
-      toast.success(`Vente créée avec succès! Total: ${calculateTotal().toFixed(2)} FBU`)
+      // Invalidate stock query to trigger refetch
+      await queryClient.invalidateQueries({
+        queryKey: posStockQueryKeys.byPointVente(POINT_VENTE_ID),
+      })
       
+      toast.success(`Vente créée avec succès! Total: ${calculateTotal().toFixed(2)} FBU`)
       setBillPrinterOpen(true)
       
     } catch (error) {
@@ -278,7 +285,6 @@ export default function POSPage() {
       setIsProcessing(false)
     }
   }
-
 
   return (
     <POSLayout currentPath="/pos">
@@ -301,15 +307,15 @@ export default function POSPage() {
             <div className="flex items-center space-x-3">
               <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 px-3 py-1">
                 <CheckCircle2 className="h-4 w-4 mr-1" />
-Caisse #1 - Ouverte
+                Caisse #1 - Ouverte
               </Badge>
               <Badge variant="outline" className="px-3 py-1">
                 <Store className="h-4 w-4 mr-1" />
-Magasin Principal - Centre-ville
+                Magasin Principal - Centre-ville
               </Badge>
               <Button variant="outline" size="sm" className="bg-transparent">
                 <Settings className="h-4 w-4 mr-1" />
-Paramètres
+                Paramètres
               </Button>
             </div>
           </div>
@@ -359,7 +365,7 @@ Paramètres
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {stocksLoading ? (
                         <div className="flex items-center justify-center py-8">
                           <RefreshCw className="h-6 w-6 animate-spin text-blue-500 mr-2" />
@@ -374,7 +380,7 @@ Paramètres
                         filteredStocks.map((stock) => {
                           const cartItem = cart.find(item => item.id === stock.produit)
                           const cartQuantity = cartItem ? cartItem.quantity : 0
-                          const availableQuantity = Number(stock.quantite_disponible) - cartQuantity
+                          const availableQuantity = Number(stock.quantite_actuelle) - cartQuantity
                           
                           return (
                             <div
@@ -457,10 +463,6 @@ Paramètres
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Produit</TableHead>
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Qté</TableHead>
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Prix</TableHead>
-                                {/* <TableHead className="text-slate-700 dark:text-slate-300 font-semibold flex items-center">
-                                  <Percent className="h-4 w-4 mr-1" />
-                                  Remise
-                                </TableHead> */}
                                 <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Total</TableHead>
                                 <TableHead></TableHead>
                               </TableRow>
@@ -509,16 +511,6 @@ Paramètres
                                       </div>
                                     </TableCell>
                                     <TableCell className="font-medium text-slate-800 dark:text-slate-200">{item.price.toFixed(2)} FBU</TableCell>
-                                    {/* <TableCell>
-                                      <Input
-                                        type="number"
-                                        value={item.discount}
-                                        onChange={(e) => updateDiscount(item.id, Number(e.target.value))}
-                                        className="w-16 text-center bg-slate-50 dark:bg-slate-600 border-slate-200 dark:border-slate-500 text-slate-800 dark:text-slate-200"
-                                        min="0"
-                                        max="100"
-                                      />
-                                    </TableCell> */}
                                     <TableCell className="font-bold text-slate-800 dark:text-slate-200">
                                       {finalTotal.toFixed(2)} FBU
                                     </TableCell>
@@ -546,54 +538,6 @@ Paramètres
 
               {/* Enhanced Right Panel - Customer & Payment */}
               <div className="col-span-3 space-y-4">
-                {/* <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center text-slate-800 dark:text-slate-200">
-                      <Users className="h-5 w-5 mr-2 text-indigo-500 dark:text-indigo-400" />
-                      Client
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Select value={selectedCustomer || ""} onValueChange={setSelectedCustomer}>
-                      <SelectTrigger className="bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600">
-                        <SelectValue placeholder="Sélectionner un client (optionnel)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clientsLoading ? (
-                          <div className="p-2 text-center">
-                            <RefreshCw className="h-4 w-4 animate-spin mx-auto" />
-                          </div>
-                        ) : (
-                          clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              <div className="flex items-center">
-                                <User className="h-4 w-4 mr-2" />
-                                {client.nom} {client.prenom} ({client.type_client})
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline" className="w-full bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border-indigo-200 dark:from-indigo-900/50 dark:to-purple-900/50 dark:hover:from-indigo-800/50 dark:hover:to-purple-800/50 dark:border-indigo-700">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Nouveau Client
-                    </Button>
-                    {selectedClient && (
-                      <div className="mt-3 p-3 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-lg border border-indigo-200 dark:border-indigo-700">
-                        <div className="flex items-start space-x-2">
-                          <User className="h-4 w-4 text-indigo-500 dark:text-indigo-400 mt-0.5" />
-                          <div className="text-sm">
-                            <p className="font-semibold text-indigo-900 dark:text-indigo-200">{selectedClient.nom} {selectedClient.prenom}</p>
-                            <p className="text-indigo-700 dark:text-indigo-300">{selectedClient.email}</p>
-                            <p className="text-indigo-700 dark:text-indigo-300">{selectedClient.telephone}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card> */}
-
                 <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center text-slate-800 dark:text-slate-200">
@@ -610,25 +554,6 @@ Paramètres
                         </span>
                         <span className="font-semibold text-slate-800 dark:text-slate-200">{calculateSubtotal().toFixed(2)} FBU</span>
                       </div>
-                      
-                      {/* <div className="flex justify-between items-center p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
-                        <span className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
-                          <Percent className="h-4 w-4 mr-2 text-orange-500 dark:text-orange-400" />
-                          Remise Globale:
-                        </span>
-                        <div className="flex items-center space-x-2">
-                          <Input
-                            type="number"
-                            value={globalDiscount}
-                            onChange={(e) => setGlobalDiscount(Number(e.target.value))}
-                            className="w-16 h-8 text-center bg-white dark:bg-slate-600 border-orange-200 dark:border-orange-700"
-                            min="0"
-                            max="100"
-                          />
-                          <span className="text-orange-600 dark:text-orange-400 font-medium">%</span>
-                        </div>
-                      </div> */}
-                      
                       <div className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                         <span className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
                           <Receipt className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" />
@@ -651,7 +576,6 @@ Paramètres
                     </div>
                   </CardContent>
                 </Card>
-
 
                 <div className="space-y-3">
                   <Button 
@@ -686,7 +610,6 @@ Paramètres
               </div>
             </div>
           </TabsContent>
-
 
           <TabsContent value="returns" className="flex-1 mt-6">
             <Card className="shadow-sm border-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm">

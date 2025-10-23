@@ -1,8 +1,7 @@
+
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,29 +9,65 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Store, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import axiosInstance  from "@/lib/axiosInstance"
+import { User, RoleEnum } from "@/types/user"
+
+interface LoginResponse {
+  user: User;
+  access: string;
+  refresh: string;
+}
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("") // Changed from email to username
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
-    // Simulate login process
-    setTimeout(() => {
-      if (email === "admin@pos.com" && password === "admin123") {
-        // Redirect to dashboard
-        window.location.href = "/"
-      } else {
-        setError("Invalid email or password. Please try again.")
+    try {
+      const response = await axiosInstance.post<LoginResponse>("/api/auth/login/", {
+        username,
+        password,
+      })
+
+      const { user, access, refresh } = response.data
+
+      // Store tokens in localStorage
+      localStorage.setItem("access_token", access)
+      localStorage.setItem("refresh_token", refresh)
+      localStorage.setItem("user", JSON.stringify(user))
+
+      // Role-based redirection
+      switch (user.role) {
+        case RoleEnum.ADMIN:
+        case RoleEnum.MANAGER:
+          router.push("/") // Redirect to admin/manager dashboard
+          break
+        case RoleEnum.CASHIER:
+          router.push("/") // Redirect to POS for cashiers
+          break
+        case RoleEnum.STOCK_MANAGER:
+          router.push("/") // Redirect to stock management
+          break
+        default:
+          router.push("/") // Fallback redirect
       }
+    } catch (error: any) {
+      console.error("Login error:", error)
+      setError(
+        error.response?.data?.detail ||
+          "Invalid username or password. Please try again."
+      )
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -60,13 +95,13 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   className="h-11"
                 />
@@ -100,7 +135,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <input
                     id="remember"
@@ -117,16 +152,18 @@ export default function LoginPage() {
                 >
                   Forgot password?
                 </Link>
-              </div>
+              </div> */}
 
               <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? "Connexion..." : "Connexion"}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">Demo credentials: admin@pos.com / admin123</p>
-            </div>
+            {/* <div className="mt-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Demo credentials: root / admin123
+              </p>
+            </div> */}
           </CardContent>
         </Card>
 
