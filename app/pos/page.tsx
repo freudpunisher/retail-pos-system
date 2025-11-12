@@ -55,6 +55,8 @@ import { Stock } from "@/types/stock.types"
 import { toast } from "sonner"
 import { posStockQueryKeys } from "@/hooks/usePOSStocks"
 
+
+
 // Constants
 const POINT_VENTE_ID = "07cf7485-4075-4809-a6a6-a7ddbcc6f426"
 const VENDEUR_ID = "default-vendeur"
@@ -96,7 +98,7 @@ export default function POSPage() {
   const createVenteMutation = useCreateVente()
   const updateVenteStatusMutation = useUpdateVenteStatus()
   const removeItemMutation = useRemoveItemFromSale()
-
+console.log("Stocks in POSPage:", stocks);
   // Get selected client data
   const selectedClient = clients.find(client => client.id === selectedCustomer)
   
@@ -138,8 +140,11 @@ export default function POSPage() {
       stock.produit_nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
       stock.produit.includes(searchTerm)
     const hasStock = Number(stock.quantite_disponible) > 0
+    console.log("Stock:", stock.produit_nom, "Matches Search:", matchesSearch, "Has Stock:", hasStock);
     return matchesSearch && hasStock
   })
+
+  console.log("Filtered stocks in POSPage:", filteredStocks);
 
   const addToCart = (stock: Stock) => {
     const existingItem = cart.find((item) => item.id === stock.produit)
@@ -381,6 +386,7 @@ export default function POSPage() {
                           const cartItem = cart.find(item => item.id === stock.produit)
                           const cartQuantity = cartItem ? cartItem.quantity : 0
                           const availableQuantity = Number(stock.quantite_actuelle) - cartQuantity
+                          console.log("Available quantity for stock", stock.produit, "is", availableQuantity)
                           
                           return (
                             <div

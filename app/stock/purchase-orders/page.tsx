@@ -279,6 +279,8 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleCreateOrUpdateOrder = async (data: FormData, orderId?: string) => {
+    const user = localStorage.getItem("user");
+    const idUser = user ? JSON.parse(user).id : null;
     console.log("handleCreateOrUpdateOrder called with data:", data);
     const isEdit = !!orderId || !!editingOrderId;
     const errors = validateForm(data, isEdit);
@@ -296,7 +298,7 @@ export default function PurchaseOrdersPage() {
         commentaire: data.commentaire,
         fournisseur: data.fournisseur,
         point_vente: data.point_vente,
-        utilisateur: "3a9d9fd3-5b7f-48b4-af7f-8eed0387d30f",
+        utilisateur: idUser,
         lignes: data.items.map((item) => {
           console.log("Mapping item:", item);
           return {

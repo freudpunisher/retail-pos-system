@@ -10,15 +10,15 @@ export enum UniteMesureEnum {
 
 export interface Product {
   nom: string;
-  description: string;
-  code_barre: string;
-  reference: string;
+  // description: string;
+  // code_barre: string;
+  // reference: string;
   unite_mesure: UniteMesureEnum;
-  prix_achat: string;
+  // prix_achat: string;
   prix_vente: string;
-  taux_tva: string;
-  stock_minimum: number;
-  stock_maximum: number;
+  // taux_tva: string;
+  // stock_minimum: number;
+  // stock_maximum: number;
   is_active: boolean;
   has_expiry: boolean;
   categorie: string;
@@ -27,15 +27,15 @@ export interface Product {
 export interface ProductResponse {
     id: string
     nom: string
-    description: string
-    code_barre: string
-    reference: string
+    // description: string
+    // code_barre: string
+    // reference: string
     unite_mesure: string
-    prix_achat: string
+    // prix_achat: string
     prix_vente: string
-    taux_tva: string
-    stock_minimum: number
-    stock_maximum: number
+    // taux_tva: string
+    // stock_minimum: number
+    // stock_maximum: number
     is_active: boolean
     has_expiry: boolean
     categorie: string

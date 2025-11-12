@@ -1,837 +1,457 @@
-"use client";
+"use client"
 
-import { useState, useEffect} from "react";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
-import toast from 'react-hot-toast';
-import { POSLayout } from "@/components/pos-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { JSX, useState, useMemo, useEffect } from "react"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import { POSLayout } from "@/components/pos-layout"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription, DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-    Search,
-    Plus,
-    Edit,
-    Trash2,
-    Eye,
-    TrendingUp,
-    TrendingDown,
-    ArrowRightLeft,
-    Package,
-    Loader2,
-    AlertTriangle,
-} from "lucide-react";
-import { useStockMovements } from "@/hooks/useStockMovements";
-import { StockMovementService } from "@/services/stockMovementService";
-import { StockService } from "@/services/stockService";
-import {
-    StockMovementResponse,
-    StockMovementFormData,
-    Stock,
-    Produit,
-    PointVente,
-    User,
-    StockMovementLigne,
-} from "@/types/StockMovement";
+  Search,
+  Package,
+  TrendingUp,
+  TrendingDown,
+  ArrowRightLeft,
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  Calendar,
+  User,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  DollarSign,
+} from "lucide-react"
+import { useStockMovements } from "@/hooks/useStockMovements"
 
 const movementTypes = [
-    { value: "all", label: "Tous les Types" },
-    { value: "entree", label: "Entrée" },
-    { value: "sortie", label: "Sortie" },
-    { value: "transfert_in", label: "Transfert Entrant" },
-    { value: "transfert_out", label: "Transfert Sortant" },
-    { value: "ajustement", label: "Ajustement" },
-    { value: "inventaire", label: "Inventaire" },
-];
-
-const unite_produit = [
-    { value: "piece", label: "Pièce" },
-    { value: "kg", label: "Kilogramme" },
-    { value: "litre", label: "Litre" },
-    { value: "metre", label: "Mètre" },
-    { value: "paquet", label: "Paquet" },
-    { value: "boite", label: "Boite" },
-    { value: "sac", label: "Sac" },
-];
+  { value: "all", label: "Tous les Types" },
+  { value: "entree", label: "Entrée" },
+  { value: "sortie", label: "Sortie" },
+  { value: "transfert_in", label: "Transfert Entrant" },
+  { value: "transfert_out", label: "Transfert Sortant" },
+  { value: "ajustement", label: "Ajustement" },
+  { value: "inventaire", label: "Inventaire" },
+]
 
 export default function MovementsPage() {
-    const [loadingInitial, setLoadingInitial] = useState(true);
-    const [loadingDetails, setLoadingDetails] = useState(false);
-    const [produitStock, setProduitStock] = useState<Stock[]>([]);
-    const [selectedPointVente, setSelectedPointVente] = useState<string | null>(null);
+  const { movements, products, pointsVente, users, loading, error, refetch } = useStockMovements()
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedType, setSelectedType] = useState("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
-    const {
-        movements,
-        stocks,
-        produits,
-        pointsVente,
-        users,
-        loading,
-        error,
-        fetchStockMovements,
-        fetchStocks,
-        fetchProduits,
-        fetchPointsVente,
-        fetchUsers,
-        createStockMovement,
-        updateStockMovement,
-        deleteStockMovement,
-    } = useStockMovements();
+  const getProductName = (stockId: string) => {
+    const product = products.find(p => p.id === stockId)
+    return product?.nom || "Inconnu"
+  }
 
-    const [searchTerm, setSearchTerm] = useState("");
-    const [selectedType, setSelectedType] = useState("all");
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [selectedMovementId, setSelectedMovementId] = useState<string | null>(null);
-    const [editingMovementId, setEditingMovementId] = useState<string | null>(null);
-    const [detailedMovement, setDetailedMovement] = useState<StockMovementResponse | null>(null);
+  const getPointVenteName = (stockId: string) => {
+    const pv = pointsVente.find(pv => pv.id === stockId)
+    return pv?.nom || "Inconnu"
+  }
 
-    const { register, control, handleSubmit, reset, formState: { errors }, setValue } = useForm<StockMovementFormData>({
-        defaultValues: {
-            type_mouvement: "entree",
-            point_vente: "",
-            reference_document: "",
-            lignes: [],
-        },
-    });
+  const getUserName = (userId: string) => {
+    const user = users.find(u => u.id === userId)
+    if (!user) return "Inconnu"
+    return [user.prenom, user.nom].filter(Boolean).join(" ") || "Utilisateur"
+  }
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: "lignes",
-    });
-
-    useEffect(() => {
-        const loadInitialData = async () => {
-            setLoadingInitial(true);  // Global loading
-            try {
-                await Promise.all([  // Parallélise pour perf
-                    fetchStockMovements(),
-                    fetchStocks(),
-                    fetchProduits(),
-                    fetchPointsVente(),
-                    fetchUsers(),
-                ]);
-                toast.success('Données chargées');  // UX feedback
-            } catch (err) {
-                console.error('Erreur chargement initial:', err);
-                toast.error('Erreur lors du chargement des données');
-            } finally {
-                setLoadingInitial(false);
-            }
-        };
-
-        loadInitialData();
-    }, []);
-
-    useEffect(() => {
-        const id = selectedMovementId || editingMovementId;  // ID unique
-
-        if (id) {
-            const fetchMovementDetails = async () => {
-                setLoadingDetails(true);
-                try {
-                    const movement = await StockMovementService.getStockMovementById(id);
-                    setDetailedMovement(movement);
-
-                    if (editingMovementId) {  // Mode edit seulement
-                        setValue("type_mouvement", movement.type_mouvement);
-                        setValue("point_vente", movement.point_vente);
-                        setValue("reference_document", movement.reference_document || "");
-
-                        // Mapping lignes robuste
-                        const lignesForm = movement.lignes?.map((ligne) => ({
-                            produit: ligne.produit?.id || ligne.produit || null,  // Gère ID ou objet
-                            unite: ligne.unite || 'piece',  // Fallback
-                            quantite_mouvement: ligne.quantite_mouvement || 0,
-                            prix_unitaire: parseFloat(ligne.prix_unitaire?.toString() || '0') || 0,
-                            montant_ligne: parseFloat(ligne.montant_ligne?.toString() || '0') || 0,
-                        })) || [];
-                        setValue("lignes", lignesForm);
-                    }
-                } catch (err: any) {
-                    console.error("Error fetching movement details:", err);
-                    toast.error('Erreur chargement détails mouvement');
-                    setDetailedMovement(null);  // Reset sur erreur
-                } finally {
-                    setLoadingDetails(false);
-                }
-            };
-
-            fetchMovementDetails();
-        } else {
-            // Reset si IDs null (ex. : fermeture modal)
-            setDetailedMovement(null);
-            setLoadingDetails(false);
-            // Optionnel : reset form en mode edit
-            if (editingMovementId !== undefined) {
-                // reset();  // De useForm, si tu veux clear
-            }
-        }
-    }, [selectedMovementId, editingMovementId]);
-
-    const filteredMovements = movements.filter((movement) => {
-        const stock = stocks.find((s) => s.id === movement.stock);
-        const produit = produits.find((p) => p.id === stock?.produit);
-        const matchesSearch =
-            (produit?.nom.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-            movement.reference_document.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesType = selectedType === "all" || movement.type_mouvement === selectedType;
-        return matchesSearch && matchesType;
-    });
-
-    const getMovementIcon = (type: string) => {
-        const icons = {
-            entree: <TrendingUp className="h-4 w-4 text-green-600" />,
-            sortie: <TrendingDown className="h-4 w-4 text-red-600" />,
-            transfert_in: <ArrowRightLeft className="h-4 w-4 text-blue-600" />,
-            transfert_out: <ArrowRightLeft className="h-4 w-4 text-orange-600" />,
-            ajustement: <Edit className="h-4 w-4 text-purple-600" />,
-            inventaire: <Package className="h-4 w-4 text-gray-600" />,
-        };
-        return icons[type as keyof typeof icons] || <Package className="h-4 w-4 text-gray-600" />;
-    };
-
-    const getMovementBadge = (type: string) => {
-        const badges = {
-            entree: <Badge className="bg-green-500 text-white">Entrée</Badge>,
-            sortie: <Badge className="bg-red-500 text-white">Sortie</Badge>,
-            transfert_in: <Badge className="bg-blue-500 text-white">Transfert Entrant</Badge>,
-            transfert_out: <Badge className="bg-orange-500 text-white">Transfert Sortant</Badge>,
-            ajustement: <Badge className="bg-purple-500 text-white">Ajustement</Badge>,
-            inventaire: <Badge className="bg-gray-500 text-white">Inventaire</Badge>,
-        };
-        return badges[type as keyof typeof badges] || <Badge variant="outline">{type}</Badge>;
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleString("fr-FR", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        });
-    };
-
-    const handleCreateOrUpdateMovement = async (data: StockMovementFormData) => {
-        try {
-            // Convert prix_unitaire to string for API compatibility
-            const formattedData = {
-                ...data,
-                lignes: data.lignes.map(ligne => ({
-                    ...ligne,
-                    prix_unitaire: ligne.prix_unitaire.toString(),
-                })),
-            };
-            if (editingMovementId) {
-                await updateStockMovement(editingMovementId, formattedData);
-                setIsEditModalOpen(false);
-            } else {
-                await createStockMovement(formattedData);
-                setIsAddModalOpen(false);
-            }
-            reset();
-            setEditingMovementId(null);
-            setDetailedMovement(null);
-        } catch (err) {
-            console.error("Error saving movement:", err);
-        }
-    };
-
-    const handleEditMovement = (movement: StockMovementResponse) => {
-        setEditingMovementId(movement.id);
-        setIsEditModalOpen(true);
-    };
-
-    const handleDeleteMovement = async (id: string) => {
-        try {
-            await deleteStockMovement(id);
-        } catch (err) {
-            console.error("Error deleting movement:", err);
-        }
-    };
-
-    // @ts-ignore
-    const renderForm = (isEdit = false) => (
-        <form onSubmit={handleSubmit(handleCreateOrUpdateMovement)} className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="type_mouvement">Type de Mouvement</Label>
-                    <Controller
-                        name="type_mouvement"
-                        control={control}
-                        rules={{ required: "Type de mouvement est requis" }}
-                        render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {movementTypes.slice(1).map((type) => (
-                                        <SelectItem key={type.value} value={type.value}>
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                    {errors.type_mouvement && <p className="text-sm text-destructive">{errors.type_mouvement.message}</p>}
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="stock">Stock (Point de Vente)</Label>
-                    <Controller
-                        name="point_vente"
-                        control={control}
-                        rules={{ required: "Point de vente est requis" }}
-                        render={({ field }) => (
-                            <Select
-                                onValueChange={async (value) => {
-                                    field.onChange(value);
-                                    setSelectedPointVente(value);
-
-                                    try {
-                                        const stocks = await StockService.getStockByPointVente(value);
-                                        setProduitStock(stocks);
-                                    } catch (error) {
-                                        console.error("Erreur lors du chargement des produits :", error);
-                                        setProduitStock([]);
-                                    }
-                                }}
-                                value={field.value}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionner un point de vente" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {pointsVente.map((pointvente) => (
-                                        <SelectItem key={pointvente.id} value={pointvente.id}>
-                                            {pointvente.nom}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                    {errors.point_vente && <p className="text-sm text-destructive">{errors.point_vente.message}</p>}
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="reference_document">Référence Document</Label>
-                    <Input
-                        id="reference_document"
-                        {...register("reference_document")}
-                        placeholder="Numéro de référence ou document"
-                    />
-                </div>
-            </div>
-            <div className="space-y-2">
-                <Label>Articles du mouvement</Label>
-                <div className="border rounded-lg bg-background/95 mt-2 pb-2">
-                    {fields.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">Aucun article ajouté</p>
-                    ) : (
-                        <Table className="w-full">
-                            <TableHeader>
-                                <TableRow className="hover:bg-muted/50">
-                                    <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
-                                    <TableHead className="text-foreground font-semibold w-2/5">Unité Mesure</TableHead>
-                                    <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Mouvement</TableHead>
-                                    <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Unitaire</TableHead>
-                                    <TableHead className="text-foreground font-semibold text-center w-1/5">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {fields.map((field, index) => (
-                                    <TableRow key={field.id} className="hover:bg-muted/20">
-                                        <TableCell className="py-2">
-                                            <Controller
-                                                name={`lignes.${index}.produit`}
-                                                control={control}
-                                                rules={{ required: "Produit est requis" }}
-                                                render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <SelectTrigger className="border-muted h-9">
-                                                            <SelectValue placeholder="Sélectionner un produit" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {produitStock.length > 0 ? (
-                                                                produitStock.map((stock) => (
-                                                                    <SelectItem key={stock.produit} value={stock.produit}>
-                                                                        {stock.produit_nom}
-                                                                    </SelectItem>
-                                                                ))
-                                                            ) : (
-                                                                <div className="text-sm text-muted p-2">Aucun produit disponible</div>
-                                                            )}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
-                                            {errors.lignes?.[index]?.produit && (
-                                                <p className="text-xs text-destructive mt-1">
-                                                    {errors.lignes?.[index]?.produit?.message}
-                                                </p>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="py-2">
-                                            <Controller
-                                                name={`lignes.${index}.unite`}
-                                                control={control}
-                                                rules={{ required: "Unité est requise" }}
-                                                render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <SelectTrigger className="border-muted h-9">
-                                                            <SelectValue placeholder="Sélectionner une unité" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {unite_produit.slice(1).map((type) => (
-                                                                <SelectItem key={type.value} value={type.value}>
-                                                                    {type.label}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
-                                            {errors.lignes?.[index]?.unite && (
-                                                <p className="text-xs text-destructive mt-1">{errors.lignes?.[index]?.unite?.message}</p>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-center">
-                                            <Input
-                                                type="number"
-                                                {...register(`lignes.${index}.quantite_mouvement`, {
-                                                    required: "Quantité demandée est requise",
-                                                    min: { value: 1, message: "Quantité doit être positive" },
-                                                    valueAsNumber: true,
-                                                })}
-                                                className="border-muted focus:ring-primary h-9 text-center"
-                                            />
-                                            {errors.lignes?.[index]?.quantite_mouvement && (
-                                                <p className="text-xs text-destructive mt-1">{errors.lignes?.[index]?.quantite_mouvement?.message}</p>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-center">
-                                            <Input
-                                                type="number"
-                                                {...register(`lignes.${index}.prix_unitaire`, {
-                                                    required: "Prix unitaire est requis",
-                                                    min: { value: 0, message: "Le prix doit être positif" },
-                                                    valueAsNumber: true,
-                                                })}
-                                                className="border-muted focus:ring-primary h-9 text-center"
-                                            />
-                                            {errors.lignes?.[index]?.prix_unitaire && (
-                                                <p className="text-xs text-destructive mt-1">{errors.lignes?.[index]?.prix_unitaire?.message}</p>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-center">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => remove(index)}
-                                            >
-                                                <Trash2 className="h-3 w-3 text-destructive" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            // @ts-ignore
-                            append({produit: "", quantite_mouvement: 1, unite: "", prix_unitaire: 0});
-                        }}
-                        className="mt-4 ml-2 mb-4"
-                    >
-                        <Plus className="h-3 w-3 mr-1 " />
-                        Ajouter Article
-                    </Button>
-                </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-                <Button
-                    variant="outline"
-                    type="button"
-                    onClick={() => {
-                        setIsAddModalOpen(false);
-                        setIsEditModalOpen(false);
-                        reset();
-                        setEditingMovementId(null);
-                    }}
-                    className="border-muted hover:bg-muted"
-                >
-                    Annuler
-                </Button>
-                <Button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-primary hover:bg-primary/90"
-                >
-                    {loading ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            {isEdit ? "Mise à jour..." : "Création..."}
-                        </>
-                    ) : (
-                        <>
-                            <Plus className="h-4 w-4 mr-2" />
-                            {isEdit ? "Mettre à jour" : "Créer"} Mouvement
-                        </>
-                    )}
-                </Button>
-            </div>
-        </form>
-    );
-
-    if (loading && !movements.length) {
-        return (
-            <POSLayout currentPath="/stock/movements">
-                <div className="flex items-center justify-center h-96">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-3 text-lg">Chargement...</span>
-                </div>
-            </POSLayout>
-        );
+  const getMovementIcon = (type: string) => {
+    const icons: Record<string, JSX.Element> = {
+      entree: <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />,
+      sortie: <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />,
+      transfert_in: <ArrowRightLeft className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
+      transfert_out: <ArrowRightLeft className="h-4 w-4 text-orange-600 dark:text-orange-400" />,
+      ajustement: <Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />,
+      inventaire: <Package className="h-4 w-4 text-gray-600 dark:text-gray-400" />,
     }
+    return icons[type] || <Package className="h-4 w-4 text-muted-foreground" />
+  }
 
-    if (error && !movements.length) {
-        return (
-            <POSLayout currentPath="/stock/movements">
-                <div className="flex items-center justify-center h-96">
-                    <div className="text-center space-y-4">
-                        <p className="text-destructive flex items-center justify-center">
-                            <AlertTriangle className="h-5 w-5 mr-2" />
-                            Erreur: {error}
-                        </p>
-                        <Button
-                            onClick={() => {
-                                fetchStockMovements();
-                                fetchStocks();
-                                fetchProduits();
-                                fetchPointsVente();
-                                fetchUsers();
-                            }}
-                        >
-                            Réessayer
-                        </Button>
-                    </div>
-                </div>
-            </POSLayout>
-        );
+  const getMovementBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      entree: "bg-green-500 hover:bg-green-600 text-white",
+      sortie: "bg-red-500 hover:bg-red-600 text-white",
+      transfert_in: "bg-blue-500 hover:bg-blue-600 text-white",
+      transfert_out: "bg-orange-500 hover:bg-orange-600 text-white",
+      ajustement: "bg-purple-500 hover:bg-purple-600 text-white",
+      inventaire: "bg-gray-500 hover:bg-gray-600 text-white",
     }
+    const label = movementTypes.find(t => t.value === type)?.label || type
+    return <Badge className={colors[type] || "bg-muted"}>{label}</Badge>
+  }
 
+  const filteredMovements = useMemo(() => {
+    return movements.filter(m => {
+      const productName = getProductName(m.stock).toLowerCase()
+      const ref = m.motif.toLowerCase()
+      const matchesSearch = productName.includes(searchTerm.toLowerCase()) || ref.includes(searchTerm.toLowerCase())
+      const matchesType = selectedType === "all" || m.type_mouvement === selectedType
+      return matchesSearch && matchesType
+    })
+  }, [movements, searchTerm, selectedType])
+
+  // Stats calculation
+  const stats = useMemo(() => {
+    const entrees = filteredMovements.filter(m => m.type_mouvement === "entree" || m.type_mouvement === "transfert_in")
+    const sorties = filteredMovements.filter(m => m.type_mouvement === "sortie" || m.type_mouvement === "transfert_out")
+    const totalEntrees = entrees.reduce((acc, m) => acc + Math.abs(m.quantite), 0)
+    const totalSorties = sorties.reduce((acc, m) => acc + Math.abs(m.quantite), 0)
+    const totalValue = filteredMovements.reduce((acc, m) => acc + (Math.abs(m.quantite) * parseFloat(m.prix_unitaire)), 0)
+    
+    return {
+      totalMovements: filteredMovements.length,
+      totalEntrees,
+      totalSorties,
+      totalValue,
+    }
+  }, [filteredMovements])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredMovements.length / itemsPerPage)
+  const paginatedMovements = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredMovements.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredMovements, currentPage, itemsPerPage])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedType, itemsPerPage])
+
+  const formatDate = (date: string) => {
+    try {
+      return format(new Date(date), "dd MMM yyyy à HH:mm", { locale: fr })
+    } catch {
+      return "Date invalide"
+    }
+  }
+
+  if (loading) {
     return (
-        <POSLayout currentPath="/stock/movements">
-            <TooltipProvider>
-                <div className="space-y-8 p-6">
-                    {/* Page Header */}
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold">Mouvements de Stock</h1>
-                            <p className="text-muted-foreground">Suivi des mouvements d'inventaire</p>
-                        </div>
-                        <div className="flex space-x-4">
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    fetchStockMovements();
-                                    fetchStocks();
-                                    fetchProduits();
-                                    fetchPointsVente();
-                                    fetchUsers();
-                                }}
-                                disabled={loading}
-                            >
-                                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                                Rafraîchir
-                            </Button>
-                            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                                <DialogTrigger asChild>
-                                    <Button>
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Ajouter Mouvement
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw', minWidth: '70vw' }}>
-                                    <DialogHeader>
-                                        <DialogTitle>Ajouter un Mouvement</DialogTitle>
-                                        <DialogDescription>Créer un nouveau mouvement de stock.</DialogDescription>
-                                    </DialogHeader>
-                                    {renderForm()}
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                    </div>
+      <POSLayout currentPath="/stock/mouvements">
+        <div className="space-y-6">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-muted-foreground">Chargement des mouvements...</p>
+            </div>
+          </div>
+        </div>
+      </POSLayout>
+    )
+  }
 
-                    {/* Filters */}
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="flex flex-wrap gap-4">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Rechercher produits ou références..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
-                                <Select value={selectedType} onValueChange={setSelectedType}>
-                                    <SelectTrigger className="w-48">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {movementTypes.map((type) => (
-                                            <SelectItem key={type.value} value={type.value}>
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Movements Table */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Historique des Mouvements</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {error && (
-                                <p className="text-sm text-destructive mb-4 flex items-center">
-                                    <AlertTriangle className="h-4 w-4 mr-2" />
-                                    {error}
-                                </p>
-                            )}
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead>Référence</TableHead>
-                                        <TableHead>Point vente</TableHead>
-                                        <TableHead>Réf reçus</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Utilisateur</TableHead>
-                                        <TableHead>Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredMovements.map((movement) => {
-                                        const stock = stocks.find((s) => s.id === movement.stock);
-                                        const produit = produits.find((p) => p.id === stock?.produit);
-                                        const pointVente = pointsVente.find((pv) => pv.id === stock?.point_vente);
-                                        const user = users.find((u) => u.id === movement.utilisateur);
-                                        return (
-                                            <TableRow key={movement.id}>
-                                                <TableCell>
-                                                    <div className="flex items-center space-x-2">
-                                                        {getMovementIcon(movement.type_mouvement)}
-                                                        {getMovementBadge(movement.type_mouvement)}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>{movement.numero_mouvement}</TableCell>
-                                                <TableCell>{movement.point_vente_nom || "Inconnu"}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline">{movement.reference_document}</Badge>
-                                                </TableCell>
-                                                <TableCell>{formatDate(movement.created_at)} </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center space-x-1">
-                                                        <span>
-                                                          {(() => {
-                                                              const prenom = movement.utilisateur_prenom || '';
-                                                              const nom = movement.utilisateur_nom || '';
-                                                              const fullName = [prenom, nom].filter(Boolean).join(' ');  // Filtre les vides et joint avec espace
-                                                              return fullName || 'Nom définie';
-                                                          })()}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex space-x-2">
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => {
-                                                                        setSelectedMovementId(movement.id);
-                                                                        setIsDetailModalOpen(true);
-                                                                    }}
-                                                                >
-                                                                    <Eye className="h-3 w-3 text-primary" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Voir les détails</TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => handleEditMovement(movement)}
-                                                                >
-                                                                    <Edit className="h-3 w-3 text-primary" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Modifier</TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => handleDeleteMovement(movement.id)}
-                                                                >
-                                                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Supprimer</TooltipContent>
-                                                        </Tooltip>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-
-                    {/* Edit Modal */}
-                    <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                        <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw', minWidth: '70vw' }}>
-                            <DialogHeader>
-                                <DialogTitle>Modifier Mouvement</DialogTitle>
-                                <DialogDescription>Mettre à jour les détails du mouvement.</DialogDescription>
-                            </DialogHeader>
-                            {renderForm(true)}
-                        </DialogContent>
-                    </Dialog>
-
-                    {/* Detail Modal */}
-                    <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-                        <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw', minWidth: '70vw' }}>
-                            <DialogHeader>
-                                <DialogTitle>Détails du Mouvement</DialogTitle>
-                                <DialogDescription>Voir les informations détaillées.</DialogDescription>
-                            </DialogHeader>
-                            {detailedMovement ? (
-                                <div>
-                                    <div className="grid grid-cols-3 gap-4 mb-4">
-                                        <div className="space-y-2">
-                                            <Label>Référence</Label>
-                                            <p>{detailedMovement.numero_mouvement || "Non définie"}</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Type de Mouvement</Label>
-                                            <p>{movementTypes.find((t) => t.value === detailedMovement.type_mouvement)?.label || "Non définie"}</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Point de vente</Label>
-                                            <p>
-                                                {(() => {
-                                                    const pointVente = pointsVente.find((pv) => pv.id === detailedMovement.point_vente);
-                                                    if (pointVente) {
-                                                        return pointVente.nom || 'Non définie';
-                                                    }
-                                                    return 'Non définie';
-                                                })()}
-                                            </p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Référence Document</Label>
-                                            <p>{detailedMovement.reference_document || "Non définie"}</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Utilisateur</Label>
-                                            <p>
-                                                {(() => {
-                                                    const foundUser = users.find((u) => u.id === detailedMovement.utilisateur);
-                                                    if (foundUser) {
-                                                        const prenom = detailedMovement.utilisateur_prenom || '';
-                                                        const nom = detailedMovement.utilisateur_non || '';
-                                                        const fullName = [prenom, nom].filter(Boolean).join(' ');                                                         return fullName || 'Non définie';
-                                                    }
-                                                    return 'Non définie';
-                                                })()}
-                                            </p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Date de Création</Label>
-                                            <p>{detailedMovement.created_at ? formatDate(detailedMovement.created_at) : "Non définie"}</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Articles du mouvement</Label>
-                                        <div className="border rounded-lg bg-background/95">
-                                            {detailedMovement.lignes && detailedMovement.lignes.length > 0 ? (
-                                                <Table className="w-full">
-                                                    <TableHeader>
-                                                        <TableRow className="hover:bg-muted/50">
-                                                            <TableHead className="text-foreground font-semibold w-2/5">Produit</TableHead>
-                                                            <TableHead className="text-foreground font-semibold w-2/5">Unité Mesure</TableHead>
-                                                            <TableHead className="text-foreground font-semibold text-center w-1/5">Qté Mouvement</TableHead>
-                                                            <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Unitaire</TableHead>
-                                                            <TableHead className="text-foreground font-semibold text-center w-1/5">Prix Total</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {detailedMovement.lignes.map((ligne, index) => (
-                                                            <TableRow key={index} className="hover:bg-muted/20">
-                                                                <TableCell className="py-2">
-                                                                    {produits.find((p) => p.id === ligne.produit)?.nom || "Inconnu"}
-                                                                </TableCell>
-                                                                <TableCell className="py-2">
-                                                                    {unite_produit.find((u) => u.value === ligne.unite)?.label || "Inconnu"}
-                                                                </TableCell>
-                                                                <TableCell className="py-2 text-center">
-                                                                    {ligne.quantite_mouvement}
-                                                                </TableCell>
-                                                                <TableCell className="py-2 text-center">
-                                                                    {ligne.prix_unitaire}
-                                                                </TableCell>
-                                                                <TableCell className="py-2 text-center">
-                                                                    {ligne.montant_ligne}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground text-center py-4">Aucun article ajouté</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center h-40">
-                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                                    <span className="ml-2">Chargement des détails...</span>
-                                </div>
-                            )}
-                        </DialogContent>
-                    </Dialog>
+  if (error) {
+    return (
+      <POSLayout currentPath="/stock/mouvements">
+        <div className="p-4">
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span className="font-medium">Erreur: {error}</span>
                 </div>
-            </TooltipProvider>
-        </POSLayout>
-    );
+                <Button onClick={refetch} variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Réessayer
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </POSLayout>
+    )
+  }
+
+  return (
+    <POSLayout currentPath="/stock/mouvements">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Mouvements de Stock</h1>
+              <p className="text-muted-foreground mt-1">Suivi complet des entrées et sorties</p>
+            </div>
+            <Button onClick={refetch} disabled={loading} variant="outline" className="h-10">
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Actualiser
+            </Button>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="border-l-4 border-l-blue-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Mouvements</p>
+                    <p className="text-2xl font-bold">{stats.totalMovements}</p>
+                  </div>
+                  <ArrowRightLeft className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-l-4 border-l-green-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Entrées</p>
+                    <p className="text-2xl font-bold">{stats.totalEntrees}</p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-red-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Sorties</p>
+                    <p className="text-2xl font-bold">{stats.totalSorties}</p>
+                  </div>
+                  <TrendingDown className="h-8 w-8 text-red-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-purple-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Valeur Totale</p>
+                    <p className="text-2xl font-bold">{stats.totalValue.toFixed(0)} FBU</p>
+                  </div>
+                  <DollarSign className="h-8 w-8 text-purple-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <Card className="bg-white dark:bg-slate-800 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1 min-w-[250px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher par produit ou motif..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-10 h-11"
+                />
+              </div>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="w-full sm:w-56 h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {movementTypes.map(t => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Table */}
+        <Card className="bg-white dark:bg-slate-800 shadow-sm">
+          <CardHeader className="border-b">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Historique des Mouvements
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              {paginatedMovements.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Package className="h-12 w-12 opacity-20 mb-4" />
+                  <p className="font-medium">Aucun mouvement trouvé</p>
+                  <p className="text-sm">Essayez de modifier vos filtres</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <ArrowRightLeft className="h-4 w-4" />
+                          Type
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          Produit
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold">Point de Vente</TableHead>
+                      <TableHead className="font-semibold text-center">Quantité</TableHead>
+                      <TableHead className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Prix Unit.
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold">Motif</TableHead>
+                      <TableHead className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Utilisateur
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Date
+                        </div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedMovements.map(m => (
+                      <TableRow key={m.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getMovementIcon(m.type_mouvement)}
+                            {getMovementBadge(m.type_mouvement)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {getProductName(m.stock)}
+                        </TableCell>
+                        <TableCell>{getPointVenteName(m.stock)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={m.quantite > 0 ? "default" : "destructive"}
+                            className="font-mono font-semibold"
+                          >
+                            {m.quantite > 0 ? "+" : ""}{m.quantite}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono">
+                            {parseFloat(m.prix_unitaire).toFixed(2)} FBU
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="max-w-[200px] truncate">
+                            {m.motif || "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <User className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">{getUserName(m.utilisateur)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span className="text-sm">{formatDate(m.created_at)}</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+
+            {/* Pagination Controls */}
+            {filteredMovements.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Lignes par page:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => setItemsPerPage(Number(value))}
+                  >
+                    <SelectTrigger className="w-20 h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground ml-4">
+                    Affichage {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredMovements.length)} sur {filteredMovements.length} résultats
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="h-9 w-9"
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="h-9 w-9"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="flex items-center gap-1 px-3">
+                    <span className="text-sm font-medium">Page {currentPage}</span>
+                    <span className="text-sm text-muted-foreground">sur {totalPages}</span>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-9 w-9"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="h-9 w-9"
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </POSLayout>
+  )
 }

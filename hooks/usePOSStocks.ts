@@ -30,9 +30,11 @@ export const usePOSStocks = (filters?: StockFilters) => {
 
 // Hook to get stocks for a specific point de vente
 export const useStocksByPointVente = (pointVenteId: string, filters?: Omit<StockFilters, 'point_vente'>) => {
+  const user= localStorage.getItem("user");
+const userId = user ? JSON.parse(user).point_vente.id : null;
   return useQuery({
-    queryKey: posStockQueryKeys.byPointVente(pointVenteId),
-    queryFn: () => posStockService.getStocksByPointVente(pointVenteId, filters),
+    queryKey: posStockQueryKeys.byPointVente(userId),
+    queryFn: () => posStockService.getStocksByPointVente(userId, filters),
     enabled: !!pointVenteId,
     staleTime: 1000 * 60 * 3, // 3 minutes for more frequent updates in POS
   });

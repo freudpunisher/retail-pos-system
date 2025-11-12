@@ -47,15 +47,15 @@ interface CategoryFormData {
 
 interface ProductFormData {
   nom: string
-  description: string
-  code_barre: string
-  reference: string
+  // description: string
+  // code_barre: string
+  // reference: string
   unite_mesure: UniteMesureEnum
-  prix_achat: string
+  // prix_achat: string
   prix_vente: string
-  taux_tva: string
-  stock_minimum: number
-  stock_maximum: number
+  // taux_tva: string
+  // stock_minimum: number
+  // stock_maximum: number
   is_active: boolean
   has_expiry: boolean
   categorie: string
@@ -73,8 +73,8 @@ export default function ProductsPage() {
   } = useCategories()
   const {
     products,
-    loading: productsLoading,
-    error: productsError,
+     productsLoading,
+  productsError,
     fetchProducts,
     createProduct,
     updateProduct,
@@ -101,15 +101,12 @@ export default function ProductsPage() {
   const productForm = useForm<ProductFormData>({
     defaultValues: {
       nom: "",
-      description: "",
-      code_barre: "",
-      reference: "",
+      
+     
       unite_mesure: UniteMesureEnum.Piece,
-      prix_achat: "",
+      
       prix_vente: "",
-      taux_tva: "",
-      stock_minimum: 0,
-      stock_maximum: 0,
+     
       is_active: true,
       has_expiry: false,
       categorie: "",
@@ -123,9 +120,7 @@ export default function ProductsPage() {
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
-      product.nom.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-      product.code_barre.includes(productSearchTerm) ||
-      product.reference.toLowerCase().includes(productSearchTerm.toLowerCase())
+      product.nom.toLowerCase().includes(productSearchTerm.toLowerCase()) 
     const matchesCategory = selectedCategory === "all" || product.categorie === selectedCategory
     return matchesSearch && matchesCategory
   })
@@ -176,15 +171,15 @@ export default function ProductsPage() {
     setEditingProductId(product.id)
     productForm.reset({
       nom: product.nom,
-      description: product.description,
-      code_barre: product.code_barre,
-      reference: product.reference,
-      unite_mesure: product.unite_mesure,
-      prix_achat: product.prix_achat,
+      // description: product.description,
+      // code_barre: product.code_barre,
+      // reference: product.reference,
+      // unite_mesure: product.unite_mesure,
+      // prix_achat: product.prix_achat,
       prix_vente: product.prix_vente,
-      taux_tva: product.taux_tva,
-      stock_minimum: product.stock_minimum,
-      stock_maximum: product.stock_maximum,
+      // taux_tva: product.taux_tva,
+      // stock_minimum: product.stock_minimum,
+      // stock_maximum: product.stock_maximum,
       is_active: product.is_active,
       has_expiry: product.has_expiry,
       categorie: product.categorie,
@@ -208,14 +203,14 @@ export default function ProductsPage() {
     }
   }
 
-  const totalInventoryValue = products.reduce((sum, product) => sum + Number(product.prix_vente) * product.stock_minimum, 0)
+  const totalInventoryValue = 0
   // Assuming stock_minimum is current stock; adjust if there's a separate stock field
-  const lowStockItems = products.filter((product) => product.stock_minimum <= product.stock_minimum).length
+  const lowStockItems = 0
 
   return (
     <POSLayout>
       <TooltipProvider>
-        <div className="space-y-8 p-6 bg-gradient-to-b from-background to-background/90 min-h-screen">
+        <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 min-h-screen">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -393,7 +388,7 @@ export default function ProductsPage() {
                 </Dialog>
               </div>
 
-              <Card className="bg-background/95 backdrop-blur-sm shadow-lg">
+              <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                 <CardContent className="pt-6">
                   {categoriesError && (
                     <p className="text-sm text-destructive mb-4 flex items-center">
@@ -563,241 +558,188 @@ export default function ProductsPage() {
                   <p className="text-sm text-muted-foreground">Manage product inventory and details</p>
                 </div>
                 <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-primary hover:bg-primary/90 transition-colors">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Product
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-2xl bg-background/95 backdrop-blur-sm rounded-lg shadow-xl">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-semibold">Add New Product</DialogTitle>
-                      <DialogDescription>Create a new product in your inventory.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={productForm.handleSubmit(onSubmitProduct)} className="grid grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="nom" className="text-sm font-medium">Product Name</Label>
-                        <Input
-                          id="nom"
-                          {...productForm.register("nom", { required: "Product name is required" })}
-                          placeholder="Enter product name"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.nom && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.nom.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="reference" className="text-sm font-medium">SKU</Label>
-                        <Input
-                          id="reference"
-                          {...productForm.register("reference", { required: "SKU is required" })}
-                          placeholder="Enter SKU"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.reference && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.reference.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="code_barre" className="text-sm font-medium">Barcode</Label>
-                        <Input
-                          id="code_barre"
-                          {...productForm.register("code_barre", { required: "Barcode is required" })}
-                          placeholder="Enter barcode"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.code_barre && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.code_barre.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="categorie" className="text-sm font-medium">Category</Label>
-                        <Controller
-                          name="categorie"
-                          control={productForm.control}
-                          rules={{ required: "Category is required" }}
-                          render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="border-muted">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.map((category) => (
-                                  <SelectItem key={category.id} value={category.id}>
-                                    {category.nom}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                        {productForm.formState.errors.categorie && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.categorie.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="prix_vente" className="text-sm font-medium">Selling Price (FBU)</Label>
-                        <Input
-                          id="prix_vente"
-                          type="number"
-                          step="0.01"
-                          {...productForm.register("prix_vente", {
-                            required: "Selling price is required",
-                            pattern: {
-                              value: /^\d+(\.\d{1,2})?$/,
-                              message: "Invalid price format",
-                            },
-                          })}
-                          placeholder="0.00"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.prix_vente && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.prix_vente.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="prix_achat" className="text-sm font-medium">Cost Price (FBU)</Label>
-                        <Input
-                          id="prix_achat"
-                          type="number"
-                          step="0.01"
-                          {...productForm.register("prix_achat", {
-                            required: "Cost price is required",
-                            pattern: {
-                              value: /^\d+(\.\d{1,2})?$/,
-                              message: "Invalid price format",
-                            },
-                          })}
-                          placeholder="0.00"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.prix_achat && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.prix_achat.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="stock_minimum" className="text-sm font-medium">Initial Stock</Label>
-                        <Input
-                          id="stock_minimum"
-                          type="number"
-                          {...productForm.register("stock_minimum", { required: "Initial stock is required" })}
-                          placeholder="0"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.stock_minimum && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.stock_minimum.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="stock_maximum" className="text-sm font-medium">Minimum Stock</Label>
-                        <Input
-                          id="stock_maximum"
-                          type="number"
-                          {...productForm.register("stock_maximum", { required: "Minimum stock is required" })}
-                          placeholder="0"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.stock_maximum && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.stock_maximum.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="unite_mesure" className="text-sm font-medium">Unit of Measure</Label>
-                        <Controller
-                          name="unite_mesure"
-                          control={productForm.control}
-                          rules={{ required: "Unit of measure is required" }}
-                          render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="border-muted">
-                                <SelectValue placeholder="Select unit" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.values(UniteMesureEnum).map((unit) => (
-                                  <SelectItem key={unit} value={unit}>
-                                    {unit.charAt(0).toUpperCase() + unit.slice(1)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                        {productForm.formState.errors.unite_mesure && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.unite_mesure.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="taux_tva" className="text-sm font-medium">TVA Rate (%)</Label>
-                        <Input
-                          id="taux_tva"
-                          type="number"
-                          step="0.01"
-                          {...productForm.register("taux_tva", {
-                            required: "TVA rate is required",
-                            pattern: {
-                              value: /^\d+(\.\d{1,2})?$/,
-                              message: "Invalid TVA rate format",
-                            },
-                          })}
-                          placeholder="0.00"
-                          className="border-muted focus:ring-primary"
-                        />
-                        {productForm.formState.errors.taux_tva && (
-                          <p className="text-sm text-destructive">{productForm.formState.errors.taux_tva.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                        <Textarea
-                          id="description"
-                          {...productForm.register("description")}
-                          placeholder="Enter product description"
-                          className="border-muted focus:ring-primary"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="has_expiry" className="text-sm font-medium">Has Expiry</Label>
-                        <Controller
-                          name="has_expiry"
-                          control={productForm.control}
-                          render={({ field }) => (
-                            <Select onValueChange={(value) => field.onChange(value === "true")} value={field.value.toString()}>
-                              <SelectTrigger className="border-muted">
-                                <SelectValue placeholder="Select option" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="true">Yes</SelectItem>
-                                <SelectItem value="false">No</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          type="button"
-                          onClick={() => setIsAddProductOpen(false)}
-                          className="border-muted hover:bg-muted"
-                        >
-                          Cancel
-                        </Button>
-                        <Button type="submit" disabled={productsLoading} className="bg-primary hover:bg-primary/90">
-                          {productsLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : (
-                            <Plus className="h-4 w-4 mr-2" />
-                          )}
-                          {productsLoading ? "Creating..." : "Create Product"}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+  <DialogTrigger asChild>
+    <Button className="bg-primary hover:bg-primary/90">
+      <Plus className="h-4 w-4 mr-2" />
+      Add Product
+    </Button>
+  </DialogTrigger>
+
+  <DialogContent className="sm:max-w-lg bg-background/95 backdrop-blur-sm rounded-xl shadow-xl">
+    <DialogHeader>
+      <DialogTitle className="text-xl font-semibold">Add New Product</DialogTitle>
+      <DialogDescription>
+        Fill only the essentials. Edit advanced details later.
+      </DialogDescription>
+    </DialogHeader>
+
+    <form onSubmit={productForm.handleSubmit(onSubmitProduct)} className="grid gap-5">
+      {/* Product Name */}
+      <div className="space-y-2">
+        <Label htmlFor="add-prod-nom">Product Name</Label>
+        <Input
+          id="add-prod-nom"
+          {...productForm.register("nom", { required: "Name is required" })}
+          placeholder="e.g., Coca Cola 33cl"
+          className="border-muted focus:ring-primary"
+        />
+        {productForm.formState.errors.nom && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.nom.message}</p>
+        )}
+      </div>
+
+      {/* Category */}
+      <div className="space-y-2">
+        <Label htmlFor="add-prod-cat">Category</Label>
+        <Controller
+          name="categorie"
+          control={productForm.control}
+          rules={{ required: "Category is required" }}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {productForm.formState.errors.categorie && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.categorie.message}</p>
+        )}
+      </div>
+
+      {/* Selling Price */}
+      <div className="space-y-2">
+        <Label htmlFor="add-prod-price">Selling Price (FBU)</Label>
+        <Input
+          id="add-prod-price"
+          type="number"
+          step="0.01"
+          {...productForm.register("prix_vente", {
+            required: "Price is required",
+            min: { value: 0, message: "Price must be ≥ 0" },
+          })}
+          placeholder="2500.00"
+          className="border-muted focus:ring-primary"
+        />
+        {productForm.formState.errors.prix_vente && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.prix_vente.message}</p>
+        )}
+      </div>
+
+      {/* Unit of Measure */}
+      <div className="space-y-2">
+        <Label htmlFor="add-prod-unit">Unit of Measure</Label>
+        <Controller
+          name="unite_mesure"
+          control={productForm.control}
+          rules={{ required: "Unit is required" }}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select unit" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(UniteMesureEnum).map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {u.charAt(0).toUpperCase() + u.slice(1).toLowerCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {productForm.formState.errors.unite_mesure && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.unite_mesure.message}</p>
+        )}
+      </div>
+
+      {/* Has Expiry */}
+      <div className="space-y-2">
+        <Label htmlFor="add-prod-expiry">Has Expiry Date?</Label>
+        <Controller
+          name="has_expiry"
+          control={productForm.control}
+          render={({ field }) => (
+            <Select
+              onValueChange={(v) => field.onChange(v === "true")}
+              value={field.value.toString()}
+            >
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="false">No</SelectItem>
+                <SelectItem value="true">Yes</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+
+      {/* Status */}
+      <div className="space-y-2">
+        <Label htmlFor="add-prod-active">Status</Label>
+        <Controller
+          name="is_active"
+          control={productForm.control}
+          render={({ field }) => (
+            <Select
+              onValueChange={(v) => field.onChange(v === "true")}
+              value={field.value.toString()}
+            >
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Active</SelectItem>
+                <SelectItem value="false">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+
+      <DialogFooter className="flex-col sm:flex-row sm:justify-end gap-3 mt-6">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsAddProductOpen(false)}
+          className="w-full sm:w-auto"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={productsLoading}
+          className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+        >
+          {productsLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Product
+            </>
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
               </div>
 
-              <Card className="bg-background/95 backdrop-blur-sm shadow-lg">
+              <Card className="shadow-sm border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                 <CardContent className="pt-6">
                   {productsError && (
                     <p className="text-sm text-destructive mb-4 flex items-center">
@@ -840,10 +782,10 @@ export default function ProductsPage() {
                     <TableHeader>
                       <TableRow className="hover:bg-muted/50">
                         <TableHead className="text-foreground font-semibold">Product Name</TableHead>
-                        <TableHead className="text-foreground font-semibold">SKU</TableHead>
+                        {/* <TableHead className="text-foreground font-semibold">SKU</TableHead> */}
                         <TableHead className="text-foreground font-semibold">Category</TableHead>
                         <TableHead className="text-foreground font-semibold">Price (FBU)</TableHead>
-                        <TableHead className="text-foreground font-semibold">Stock</TableHead>
+                        {/* <TableHead className="text-foreground font-semibold">Stock</TableHead> */}
                         <TableHead className="text-foreground font-semibold">Status</TableHead>
                         <TableHead className="text-foreground font-semibold">Actions</TableHead>
                       </TableRow>
@@ -859,12 +801,12 @@ export default function ProductsPage() {
                         filteredProducts.map((product) => (
                           <TableRow key={product.id} className="hover:bg-muted/20 transition-colors">
                             <TableCell className="font-medium text-foreground">{product.nom}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{product.reference}</TableCell>
+                            {/* <TableCell className="text-sm text-muted-foreground">{product.reference}</TableCell> */}
                             <TableCell>
                               {categories.find((cat) => cat.id === product.categorie)?.nom || "Unknown"}
                             </TableCell>
                             <TableCell>{Number(product.prix_vente).toFixed(2)} FBU</TableCell>
-                            <TableCell>
+                            {/* <TableCell>
                               <div className="flex items-center space-x-2">
                                 <span>{product.stock_minimum}</span>
                                 {product.stock_minimum <= product.stock_minimum && (
@@ -873,7 +815,7 @@ export default function ProductsPage() {
                                   </Badge>
                                 )}
                               </div>
-                            </TableCell>
+                            </TableCell> */}
                             <TableCell>
                               <Badge
                                 variant={product.is_active ? "default" : "secondary"}
@@ -920,233 +862,189 @@ export default function ProductsPage() {
                 </CardContent>
               </Card>
 
-              <Dialog open={isEditProductOpen} onOpenChange={setIsEditProductOpen}>
-                <DialogContent className="sm:max-w-2xl bg-background/95 backdrop-blur-sm rounded-lg shadow-xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-semibold">Edit Product</DialogTitle>
-                    <DialogDescription>Update product details.</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={productForm.handleSubmit(onSubmitProduct)} className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="nom" className="text-sm font-medium">Product Name</Label>
-                      <Input
-                        id="nom"
-                        {...productForm.register("nom", { required: "Product name is required" })}
-                        placeholder="Enter product name"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.nom && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.nom.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="reference" className="text-sm font-medium">SKU</Label>
-                      <Input
-                        id="reference"
-                        {...productForm.register("reference", { required: "SKU is required" })}
-                        placeholder="Enter SKU"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.reference && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.reference.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="code_barre" className="text-sm font-medium">Barcode</Label>
-                      <Input
-                        id="code_barre"
-                        {...productForm.register("code_barre", { required: "Barcode is required" })}
-                        placeholder="Enter barcode"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.code_barre && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.code_barre.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="categorie" className="text-sm font-medium">Category</Label>
-                      <Controller
-                        name="categorie"
-                        control={productForm.control}
-                        rules={{ required: "Category is required" }}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className="border-muted">
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories.map((category) => (
-                                <SelectItem key={category.id} value={category.id}>
-                                  {category.nom}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {productForm.formState.errors.categorie && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.categorie.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prix_vente" className="text-sm font-medium">Selling Price (FBU)</Label>
-                      <Input
-                        id="prix_vente"
-                        type="number"
-                        step="0.01"
-                        {...productForm.register("prix_vente", {
-                          required: "Selling price is required",
-                          pattern: {
-                            value: /^\d+(\.\d{1,2})?$/,
-                            message: "Invalid price format",
-                          },
-                        })}
-                        placeholder="0.00"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.prix_vente && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.prix_vente.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prix_achat" className="text-sm font-medium">Cost Price (FBU)</Label>
-                      <Input
-                        id="prix_achat"
-                        type="number"
-                        step="0.01"
-                        {...productForm.register("prix_achat", {
-                          required: "Cost price is required",
-                          pattern: {
-                            value: /^\d+(\.\d{1,2})?$/,
-                            message: "Invalid price format",
-                          },
-                        })}
-                        placeholder="0.00"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.prix_achat && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.prix_achat.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="stock_minimum" className="text-sm font-medium">Initial Stock</Label>
-                      <Input
-                        id="stock_minimum"
-                        type="number"
-                        {...productForm.register("stock_minimum", { required: "Initial stock is required" })}
-                        placeholder="0"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.stock_minimum && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.stock_minimum.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="stock_maximum" className="text-sm font-medium">Minimum Stock</Label>
-                      <Input
-                        id="stock_maximum"
-                        type="number"
-                        {...productForm.register("stock_maximum", { required: "Minimum stock is required" })}
-                        placeholder="0"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.stock_maximum && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.stock_maximum.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="unite_mesure" className="text-sm font-medium">Unit of Measure</Label>
-                      <Controller
-                        name="unite_mesure"
-                        control={productForm.control}
-                        rules={{ required: "Unit of measure is required" }}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className="border-muted">
-                              <SelectValue placeholder="Select unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.values(UniteMesureEnum).map((unit) => (
-                                <SelectItem key={unit} value={unit}>
-                                  {unit.charAt(0).toUpperCase() + unit.slice(1)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {productForm.formState.errors.unite_mesure && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.unite_mesure.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="taux_tva" className="text-sm font-medium">TVA Rate (%)</Label>
-                      <Input
-                        id="taux_tva"
-                        type="number"
-                        step="0.01"
-                        {...productForm.register("taux_tva", {
-                          required: "TVA rate is required",
-                          pattern: {
-                            value: /^\d+(\.\d{1,2})?$/,
-                            message: "Invalid TVA rate format",
-                          },
-                        })}
-                        placeholder="0.00"
-                        className="border-muted focus:ring-primary"
-                      />
-                      {productForm.formState.errors.taux_tva && (
-                        <p className="text-sm text-destructive">{productForm.formState.errors.taux_tva.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                      <Textarea
-                        id="description"
-                        {...productForm.register("description")}
-                        placeholder="Enter product description"
-                        className="border-muted focus:ring-primary"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="has_expiry" className="text-sm font-medium">Has Expiry</Label>
-                      <Controller
-                        name="has_expiry"
-                        control={productForm.control}
-                        render={({ field }) => (
-                          <Select onValueChange={(value) => field.onChange(value === "true")} value={field.value.toString()}>
-                            <SelectTrigger className="border-muted">
-                              <SelectValue placeholder="Select option" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">Yes</SelectItem>
-                              <SelectItem value="false">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        onClick={() => setIsEditProductOpen(false)}
-                        className="border-muted hover:bg-muted"
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={productsLoading} className="bg-primary hover:bg-primary/90">
-                        {productsLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Edit className="h-4 w-4 mr-2" />
-                        )}
-                        {productsLoading ? "Updating..." : "Update Product"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              {/* ADD PRODUCT DIALOG - SIMPLIFIED */}
+<Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+  {/* <DialogTrigger asChild>
+    <Button className="bg-primary hover:bg-primary/90 transition-colors">
+      <Plus className="h-4 w-4 mr-2" />
+      Add Product
+    </Button>
+  </DialogTrigger> */}
+  <DialogContent className="sm:max-w-lg bg-background/95 backdrop-blur-sm rounded-lg shadow-xl">
+    <DialogHeader>
+      <DialogTitle className="text-xl font-semibold">Add New Product</DialogTitle>
+      <DialogDescription>
+        Quickly add a product. You can edit advanced details later.
+      </DialogDescription>
+    </DialogHeader>
+
+    <form onSubmit={productForm.handleSubmit(onSubmitProduct)} className="space-y-5">
+      {/* Product Name */}
+      <div className="space-y-2">
+        <Label htmlFor="add-nom">Product Name</Label>
+        <Input
+          id="add-nom"
+          {...productForm.register("nom", { required: "Product name is required" })}
+          placeholder="e.g., Coca Cola 33cl"
+          className="border-muted focus:ring-primary"
+        />
+        {productForm.formState.errors.nom && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.nom.message}</p>
+        )}
+      </div>
+
+      {/* Category */}
+      <div className="space-y-2">
+        <Label htmlFor="add-categorie">Category</Label>
+        <Controller
+          name="categorie"
+          control={productForm.control}
+          rules={{ required: "Category is required" }}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {productForm.formState.errors.categorie && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.categorie.message}</p>
+        )}
+      </div>
+
+      {/* Selling Price */}
+      <div className="space-y-2">
+        <Label htmlFor="add-prix_vente">Selling Price (FBU)</Label>
+        <Input
+          id="add-prix_vente"
+          type="number"
+          step="0.01"
+          {...productForm.register("prix_vente", {
+            required: "Selling price is required",
+            min: { value: 0, message: "Price must be positive" },
+          })}
+          placeholder="2500.00"
+          className="border-muted focus:ring-primary"
+        />
+        {productForm.formState.errors.prix_vente && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.prix_vente.message}</p>
+        )}
+      </div>
+
+      {/* Unit of Measure */}
+      <div className="space-y-2">
+        <Label htmlFor="add-unite_mesure">Unit of Measure</Label>
+        <Controller
+          name="unite_mesure"
+          control={productForm.control}
+          rules={{ required: "Unit is required" }}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select unit" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(UniteMesureEnum).map((unit) => (
+                  <SelectItem key={unit} value={unit}>
+                    {unit.charAt(0).toUpperCase() + unit.slice(1).toLowerCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {productForm.formState.errors.unite_mesure && (
+          <p className="text-sm text-destructive">{productForm.formState.errors.unite_mesure.message}</p>
+        )}
+      </div>
+
+      {/* Has Expiry */}
+      <div className="space-y-2">
+        <Label htmlFor="add-has_expiry">Has Expiry Date?</Label>
+        <Controller
+          name="has_expiry"
+          control={productForm.control}
+          render={({ field }) => (
+            <Select
+              onValueChange={(v) => field.onChange(v === "true")}
+              value={field.value.toString()}
+            >
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="false">No</SelectItem>
+                <SelectItem value="true">Yes</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+
+      {/* Status */}
+      <div className="space-y-2">
+        <Label htmlFor="add-is_active">Status</Label>
+        <Controller
+          name="is_active"
+          control={productForm.control}
+          render={({ field }) => (
+            <Select
+              onValueChange={(v) => field.onChange(v === "true")}
+              value={field.value.toString()}
+            >
+              <SelectTrigger className="border-muted">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Active</SelectItem>
+                <SelectItem value="false">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+
+      <DialogFooter className="flex sm:justify-between gap-3">
+        <Button
+          variant="outline"
+          type="button"
+          onClick={() => {
+            setIsAddProductOpen(false)
+            productForm.reset()
+          }}
+          className="border-muted hover:bg-muted"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={productsLoading}
+          className="bg-primary hover:bg-primary/90"
+        >
+          {productsLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Product
+            </>
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
             </TabsContent>
           </Tabs>
         </div>
