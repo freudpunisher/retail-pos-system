@@ -1,6 +1,6 @@
 "use client"
 
-import {useState, useMemo, useEffect} from "react"
+import React, {useState, useMemo, useEffect} from "react"
 import { POSLayout } from "@/components/pos-layout"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ import {
 
 import { useStocks } from "@/hooks/useStock"
 import {bgMagenta} from "next/dist/lib/picocolors";
+import {Badge} from "@/components/ui/badge";
 
 export default function StockPage() {
     const { stocks, loading, error, fetchStocks } = useStocks()
@@ -37,8 +38,16 @@ export default function StockPage() {
 
     const pointsVente = useMemo(() => {
         if (!stocks?.length) return []
-        return Array.from(new Set(stocks.map((s) => s.point_vente)))
+        const map = new Map<string, string>()
+
+        stocks.forEach((s) => {
+            if (s.point_vente && s.point_vente_nom) {
+                map.set(s.point_vente, s.point_vente_nom)
+            }
+        })
+        return Array.from(map, ([id, nom]) => ({ id, nom }))
     }, [stocks])
+
 
     const produits = useMemo(() => {
         if (!stocks?.length) return []
@@ -128,12 +137,13 @@ export default function StockPage() {
                                     <SelectContent>
                                         <SelectItem value="all">Tous</SelectItem>
                                         {pointsVente.map((pv) => (
-                                            <SelectItem key={pv} value={pv}>
-                                                {pv}  {/* Affiche l'ID pour l'instant */}
+                                            <SelectItem key={pv.id} value={pv.id}>
+                                                {pv.nom}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
+
 
                                 {/* Filtre par produit */}
                                 <Select value={selectedProduit} onValueChange={setSelectedProduit}>
@@ -173,7 +183,13 @@ export default function StockPage() {
                                         filteredStocks.map((stock) => (
                                             <TableRow key={stock.id}>
                                                 <TableCell>{stock.point_vente_nom}</TableCell>  {/* Utilise l'ID */}
-                                                <TableCell>{stock.produit_nom}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary"
+                                                           className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800 mr-3">
+                                                        {stock.produit_reference}
+                                                    </Badge>
+                                                    {stock.produit_nom}
+                                                </TableCell>
                                                 <TableCell>{stock.quantite_actuelle}</TableCell>
                                                 <TableCell>{stock.quantite_reservee}</TableCell>
                                                 <TableCell>{stock.quantite_disponible}</TableCell>  {/* Utilise le champ pré-calculé */}

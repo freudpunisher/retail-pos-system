@@ -1,91 +1,39 @@
-import {CommandeFournisseurLigne} from "@/types/commandesFournisseurs";
+// types/stockMovement.ts
 
-export interface StockMovementLigne {
-    id?: string;
-    unite: 'piece' | 'kg' | 'litre' | 'metre' | 'paquet' | 'boite' | 'sac';
-    quantite_mouvement: number;
-    prix_unitaire: string;
-    mouvement_stock?: string;
-    montant_ligne?: string;
-    produit: string;
-}
+// Enum pour les types de mouvement
+export type TypeMouvement =
+    | 'entree'
+    | 'sortie'
+    | 'transfert_in'
+    | 'transfert_out'
+    | 'ajustement'
+    | 'inventaire';
 
-export interface StockMovement {
-  id: string;
-  type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-  lignes?: StockMovementLigne[];
-  stock: string;
-  stock_nom: string;
-  point_vente_nom: string;
-  point_vente: string;
-  utilisateur_nom: string;
-  utilisateur_prenom: string;
-  reference: string;
-  reference_document: string;
-  utilisateur: string;
-  created_at: string;
-}
+// Enum pour les unités de mesure
+export type UniteMesure =
+    | 'piece'
+    | 'kg'
+    | 'litre'
+    | 'metre'
+    | 'paquet'
+    | 'boite'
+    | 'sac';
 
-export interface StockMovementFormData {
-    type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-    reference_document: string;
-    numero_mouvement: string;
-    point_vente_nom: string;
-    point_vente: string;
-    utilisateur: string;
-    lignes: {
-        produit: string;
-        unite: 'piece' | 'kg' | 'litre' | 'metre' | 'paquet' | 'boite' | 'sac';
-        quantite_mouvement: number;
-        prix_unitaire: number;
-        montant_ligne: number;
-    }[];
-}
-
-export interface StockMovementResponse extends StockMovement {
+export interface MouvementStock {
+    point_vente_nom: ReactNode;
+    produit_nom: ReactNode;
+    produit_reference: ReactNode;
     id: string;
+    stock: string;
     type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-    lignes?: StockMovementLigne[];
-    point_vente_nom: string;
-    point_vente: string;
-    utilisateur_non: string;
-    utilisateur_prenom: string;
-    numero_mouvement: string;
-    reference_document: string;
-    utilisateur: string;
+    quantite: number;
+    prix_unitaire: number | null;
+    motif: string;
+    utilisateur: string | null;
+    date_expiration: string | null;
     created_at: string;
-}
-
-export interface CreateStockMovementRequest {
-    type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-    point_vente_nom: string;
-    reference_document: string;
-}
-
-export interface UpdateStockMovementRequest {
-    type_mouvement: 'entree' | 'sortie' | 'transfert_in' | 'transfert_out' | 'ajustement' | 'inventaire';
-    reference_document: string;
-    point_vente_nom: string;
-}
-
-export interface Stock {
-  id: string;
-  produit: string; // UUID referencing Produit
-  point_vente: string; // UUID referencing PointVente
-}
-
-export interface Produit {
-  id: string;
-  nom: string;
-  categorie: string;
-}
-
-export interface PointVente {
-  id: string;
-  nom: string;
-}
-
-export interface User {
-  id: string;
-  nom: string; // or username
+    stock_produit_nom?: string;
+    stock_produit_refrence?: string;
+    stock_point_vente_nom?: string;
+    stock_categorie_nom?: string;
 }

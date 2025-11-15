@@ -1,112 +1,55 @@
 import axiosInstance from '../lib/axiosInstance';
 import {
-    StockMovementResponse,
-    CreateStockMovementRequest,
-    UpdateStockMovementRequest,
-    Stock,
-    Produit,
-    PointVente,
-    User, StockMovementLigne,
+    MouvementStock,
+    UniteMesure,
+    TypeMouvement,
 } from '../types/StockMovement';
 
-export const StockMovementService = {
-  getStockMovements: async (): Promise<StockMovementResponse[]> => {
+// Fonction générique pour gérer les requêtes et erreurs
+async function handleRequest<T>(promise: Promise<{ data: T }>, errorMessage: string): Promise<T> {
     try {
-      const response = await axiosInstance.get('/api/mouvements-stock/');
-      console.log("Fetched stock movements:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching stock movements:', error);
-      throw error;
-    }
-  },
-
-  getStockMovementById: async (id: string): Promise<StockMovementResponse> => {
-    try {
-      const response = await axiosInstance.get(`/api/mouvements-stock/${id}/`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching stock movement with id ${id}:`, error);
-      throw error;
-    }
-  },
-
-  getLigneStockMovementById: async (id: string): Promise<StockMovementLigne> => {
-    try {
-        const response = await axiosInstance.get(`/api/mouvements-stock/${id}/`);
+        const response = await promise;
         return response.data;
     } catch (error) {
-        console.error(`Error fetching stock movement with id ${id}:`, error);
+        console.error(errorMessage, error);
         throw error;
     }
-  },
+}
 
-  createStockMovement: async (movementData: CreateStockMovementRequest): Promise<StockMovementResponse> => {
-    try {
-      const response = await axiosInstance.post('/api/mouvements-stock/', movementData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating stock movement:', error);
-      throw error;
-    }
-  },
+export const StockMovementService = {
+    // -------------------------
+    // Mouvement de stock avec filtres
+    // -------------------------
+    getStockMovements: (filters?: {
+        type_mouvement?: string;
+        point_vente_nom?: string;
+        produit_nom?: string;
+        produit_reference?: string;
+        categorie_nom?: string;
+        search?: string;
+        date_from?: string;
+        date_to?: string;
+    }): Promise<MouvementStock[]> => {
+        const params: any = {};
 
-  updateStockMovement: async (id: string, movementData: UpdateStockMovementRequest): Promise<StockMovementResponse> => {
-    try {
-      const response = await axiosInstance.patch(`/api/mouvements-stock/${id}/`, movementData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error updating stock movement with id ${id}:`, error);
-      throw error;
-    }
-  },
+        if (filters?.type_mouvement) params.type_mouvement = filters.type_mouvement;
+        if (filters?.point_vente_nom) params.point_vente_nom = filters.point_vente_nom;
+        if (filters?.produit_nom) params.produit_nom = filters.produit_nom;
+        if (filters?.produit_reference) params.produit_reference = filters.produit_reference;
+        if (filters?.categorie_nom) params.categorie_nom = filters.categorie_nom;
+        if (filters?.search) params.search = filters.search;
+        if (filters?.date_from) params.created_at__gte = filters.date_from;
+        if (filters?.date_to) params.created_at__lte = filters.date_to;
 
-  deleteStockMovement: async (id: string): Promise<void> => {
-    try {
-      await axiosInstance.delete(`/api/mouvements-stock/${id}/`);
-    } catch (error) {
-      console.error(`Error deleting stock movement with id ${id}:`, error);
-      throw error;
-    }
-  },
+        return handleRequest(
+            axiosInstance.get('/api/mouvements-stock/', { params }),
+            'Error fetching stock movements'
+        );
+    },
 
-  getStocks: async (): Promise<Stock[]> => {
-    try {
-      const response = await axiosInstance.get('/api/stocks/');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching stocks:', error);
-      throw error;
-    }
-  },
-
-  getProduits: async (): Promise<Produit[]> => {
-    try {
-      const response = await axiosInstance.get('/api/produits/');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      throw error;
-    }
-  },
-
-  getPointsVente: async (): Promise<PointVente[]> => {
-    try {
-      const response = await axiosInstance.get('/api/points-vente/');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching points of sale:', error);
-      throw error;
-    }
-  },
-
-  getUsers: async (): Promise<User[]> => {
-    try {
-      const response = await axiosInstance.get('/api/users/');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      throw error;
-    }
-  },
+    getStockMovementById: (id: string): Promise<MouvementStock> =>
+        handleRequest(
+            axiosInstance.get(`/api/mouvements-stock/${id}/`),
+            `Error fetching stock movement with id ${id}`
+        ),
 };
