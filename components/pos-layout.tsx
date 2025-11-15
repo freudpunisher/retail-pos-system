@@ -58,6 +58,7 @@ const navigation: NavigationItem[] = [
       { name: "Movements", icon: Package, href: "/stock/movements" },
       { name: "Transfers", icon: Package, href: "/stock/transfers" },
       { name: "Purchase Orders", icon: Package, href: "/stock/purchase-orders" },
+      { name: "Inventaire", icon: Package, href: "/stock/inventaire" },
     ],
   },
   { name: "Clients", icon: Users, href: "/clients" },
