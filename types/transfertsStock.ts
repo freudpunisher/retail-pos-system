@@ -6,6 +6,7 @@ export interface PointVente {
 export interface Utilisateur {
     id: string;
     nom: string;
+    username: string;
 }
 
 export interface Produit {
@@ -30,7 +31,7 @@ export interface TransfertStock {
     point_vente_source_nom?: string;
     point_vente_destination: string;
     point_vente_destination_nom?: string;
-    status: 'pending' | 'validated' | 'shipped' | 'received' | 'cancelled';
+    status: 'pending' | 'validated' | 'shipped' | 'received' | 'cancelled'| 'completed';
     demandeur: string;
     demandeur_username?: string;
     validateur?: string;
@@ -66,7 +67,7 @@ export interface UpdateTransfertStock {
     numero_transfert?: string;
     point_vente_source?: string;
     point_vente_destination?: string;
-    status?: 'pending' | 'validated' | 'shipped' | 'received' | 'cancelled';
+    status?: 'pending' | 'validated' | 'shipped' | 'received' | 'cancelled'|'completed';
     demandeur?: string;
     validateur?: string;
     date_validation?: string;
