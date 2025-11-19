@@ -13,7 +13,7 @@ export interface Inventaire {
   id?: string
   numero_inventaire: string
   point_vente: string
-  status: "pending" | "validated"
+  status: "pending" | "validate"
   utilisateur_cree: string
   utilisateur_valide?: string
   date_creation?: string

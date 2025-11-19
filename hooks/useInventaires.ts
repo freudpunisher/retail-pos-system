@@ -24,7 +24,7 @@ export const useInventaires = () => {
 
   const add = async (payload: CreateInventaire) => {
     try {
-      await axiosInstance.post("api/inventaires/", payload)
+      await axiosInstance.post("api/inventaires-bulk/", payload)
       toast.success("Inventaire créé")
       load()
     } catch (err: any) {
@@ -36,7 +36,7 @@ export const useInventaires = () => {
 
   const edit = async (id: string, payload: Partial<Inventaire>) => {
     try {
-      await axiosInstance.patch(`api/inventaires/${id}`, payload)
+      await axiosInstance.patch(`api/inventaires/${id}/`, payload)
       toast.success("Inventaire mis à jour")
       load()
     } catch (err: any) {
@@ -54,7 +54,7 @@ export const useInventaires = () => {
     }
 
     await edit(id, {
-      status: "validated",
+      status: "validate",
       date_validation: new Date().toISOString(),
       utilisateur_valide: currentUser.id,
     })

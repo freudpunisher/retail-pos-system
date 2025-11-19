@@ -1,95 +1,56 @@
 "use client"
-import React, { useState, useEffect, JSX } from "react"
+import React, { useState } from "react"
 import { useForm, Controller, useFieldArray } from "react-hook-form"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import toast from "react-hot-toast"
-
 import { POSLayout } from "@/components/pos-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
-  Search,
-  Plus,
-  Edit,
-  CheckCircle,
-  Loader2,
+  Search, Plus, Edit, CheckCircle2, Loader2, Package, Store, User, FileText, Eye,
+  ClipboardList, Building2, Calendar, Hash, MessageSquare, AlertCircle
 } from "lucide-react"
 
 import { usePointsVente } from "@/hooks/usePointsVente"
-import { useStocks } from "@/hooks/useStock"          // ← renamed
+import { useStocks } from "@/hooks/useStock"
 import { useInventaires } from "@/hooks/useInventaires"
-import { Inventaire, CreateInventaire } from "@/types/inventaire"
+import { Inventaire } from "@/types/inventaire"
 import { getCurrentUser } from "@/lib/auth"
 
 const CURRENT_USER = getCurrentUser()
 
-interface InventaireFormData {
-  numero_inventaire: string
-  point_vente: string
-  status: "pending" | "validated"
-  commentaire?: string
-  lignes: {
-    produit: string
-    quantite_stock: number
-    quantite_reel: number
-  }[]
-}
-
-/* ────────────────────────────────────────────────────────────── */
-/* ──────────────────────── MAIN PAGE ─────────────────────────── */
-/* ────────────────────────────────────────────────────────────── */
 export default function InventairePage() {
-  const { pointsVente, pointsVenteLoading, fetchPointsVente } = usePointsVente()
-  const { stocks, loading: stockLoading, fetchStocks } = useStocks()               // ← useStocks
+  const { pointsVente, pointsVenteLoading } = usePointsVente()
+  const { stocks, loading: stockLoading } = useStocks()
   const { inventaires, loading: invLoading, add, edit, validate } = useInventaires()
 
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [isViewOpen, setIsViewOpen] = useState(false)
+  const [currentInventaire, setCurrentInventaire] = useState<Inventaire | null>(null)
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-    watch: formWatch,
-    setValue: formSetValue,
-  } = useForm<InventaireFormData>({
+  const { register, control, handleSubmit, reset, watch, setValue } = useForm({
     defaultValues: {
       numero_inventaire: `INV-${Date.now()}`,
       point_vente: "",
-      status: "pending",
       commentaire: "",
       lignes: [],
     },
   })
-  useEffect(() => { fetchStocks() }, [fetchStocks])  // ← fetch stocks on mount
-  useEffect(() => { 
-    
-      fetchPointsVente()
-    
-  }, [fetchPointsVente])
-
-  console.log("Stocks in InventairePage:", stocks) // Debug log
 
   const { fields, append, remove } = useFieldArray({ control, name: "lignes" })
+  const watchedPointVente = watch("point_vente")
+  const filteredStock = watchedPointVente ? stocks.filter((s: any) => s.point_vente === watchedPointVente) : []
 
   const filtered = inventaires.filter(i => {
     const matchesSearch = i.numero_inventaire.toLowerCase().includes(searchTerm.toLowerCase())
@@ -97,46 +58,40 @@ export default function InventairePage() {
     return matchesSearch && matchesStatus
   })
 
-  const getStatusBadge = (s: "pending" | "validated") => {
-    const map: Record<string, JSX.Element> = {
-      pending: <Badge className="bg-gray-500 text-white">En cours</Badge>,
-      validated: <Badge className="bg-green-500 text-white">Validé</Badge>,
-    }
-    return map[s] ?? <Badge variant="outline">{s}</Badge>
-  }
-
-  const onSubmit = async (data: InventaireFormData) => {
-    const payload: CreateInventaire = {
+  const onSubmit = async (data: any) => {
+    const payload = {
       ...data,
       utilisateur_cree: CURRENT_USER!.id,
       stock_inventaire_traitee: false,
-      lignes: data.lignes.map(l => ({
-        ...l,
-        inventaire_stock: "", // backend will fill
+      lignes: data.lignes.map((l: any) => ({
+        produit: l.produit,
+        quantite_stock: l.quantite_stock,
+        quantite_reel: l.quantite_reel,
       })),
     }
 
     try {
-      if (editingId) {
-        await edit(editingId, payload)
+      if (currentInventaire?.id) {
+        await edit(currentInventaire.id, payload)
+        toast.success("Inventaire mis à jour")
         setIsEditOpen(false)
       } else {
         await add(payload)
+        toast.success("Inventaire créé avec succès")
         setIsAddOpen(false)
       }
       reset()
-      setEditingId(null)
+      setCurrentInventaire(null)
     } catch {
-      toast.error("Erreur sauvegarde")
+      toast.error("Erreur lors de la sauvegarde")
     }
   }
 
   const openEdit = (inv: Inventaire) => {
-    setEditingId(inv.id!)
+    setCurrentInventaire(inv)
     reset({
       numero_inventaire: inv.numero_inventaire,
       point_vente: inv.point_vente,
-      status: inv.status,
       commentaire: inv.commentaire ?? "",
       lignes: inv.lignes.map(l => ({
         produit: l.produit,
@@ -147,14 +102,29 @@ export default function InventairePage() {
     setIsEditOpen(true)
   }
 
+  const openView = (inv: Inventaire) => {
+    setCurrentInventaire(inv)
+    reset({
+      numero_inventaire: inv.numero_inventaire,
+      point_vente: inv.point_vente,
+      commentaire: inv.commentaire ?? "",
+      lignes: inv.lignes.map(l => ({
+        produit: l.produit,
+        quantite_stock: l.quantite_stock,
+        quantite_reel: l.quantite_reel,
+      })),
+    })
+    setIsViewOpen(true)
+  }
+
   const globalLoading = pointsVenteLoading || stockLoading || invLoading
 
   if (globalLoading && inventaires.length === 0) {
     return (
       <POSLayout currentPath="/stock/inventaire">
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="h-8 w-8 animate-spin mr-3" />
-          <span className="text-lg">Chargement...</span>
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500 mr-4" />
+          <p className="text-xl text-slate-600 dark:text-slate-400">Chargement des inventaires...</p>
         </div>
       </POSLayout>
     )
@@ -162,366 +132,319 @@ export default function InventairePage() {
 
   return (
     <POSLayout currentPath="/stock/inventaire">
-      <TooltipProvider>
-        <div className="p-6 space-y-8">
-          {/* ── Header ── */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-extrabold">Inventaires</h1>
-              <p className="text-lg text-muted-foreground">Gérez les comptages physiques</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="p-6 space-y-8 max-w-7xl mx-auto">
+
+          {/* Header Magnifique */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 p-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-6">
+                <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-xl">
+                  <ClipboardList className="h-10 w-10 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-extrabold text-slate-800 dark:text-slate-100">Gestion des Inventaires</h1>
+                  <p className="text-lg text-slate-600 dark:text-slate-400 mt-2 flex items-center">
+                    <Package className="h-5 w-5 mr-2 text-blue-500" />
+                    Comptage physique précis du stock par point de vente
+                  </p>
+                </div>
+              </div>
+              <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg">
+                    <Plus className="h-5 w-5 mr-2" />
+                    Nouvel Inventaire
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800" style={{ width: "80vw", maxWidth: "80vw" }}>
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-bold flex items-center">
+                      <ClipboardList className="h-7 w-7 mr-3 text-blue-600" />
+                      Créer un Inventaire
+                    </DialogTitle>
+                  </DialogHeader>
+                  <InventaireForm
+                    mode="create"
+                    onSubmit={handleSubmit(onSubmit)}
+                    register={register}
+                    control={control}
+                    watch={watch}
+                    setValue={setValue}
+                    fields={fields}
+                    append={append}
+                    remove={remove}
+                    pointsVente={pointsVente}
+                    filteredStock={filteredStock}
+                    onCancel={() => setIsAddOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
             </div>
-
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-              <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" /> Nouvel Inventaire</Button>
-              </DialogTrigger>
-
-              <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: "80vw", maxWidth: "80vw" }}>
-                <DialogHeader><DialogTitle>Créer Inventaire</DialogTitle></DialogHeader>
-                <InventaireForm
-                  onSubmit={handleSubmit(onSubmit)}
-                  register={register}
-                  control={control}
-                  errors={errors}
-                  fields={fields}
-                  append={append}
-                  remove={remove}
-                  pointsVente={pointsVente}
-                  pointsVenteLoading={pointsVenteLoading}
-                  stock={stocks}
-                  stockLoading={stockLoading}
-                  watch={formWatch}
-                  setValue={formSetValue}
-                  isEdit={false}
-                  onCancel={() => setIsAddOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
           </div>
 
-          {/* ── Filters ── */}
-          <Card>
+          {/* Filtres */}
+          <Card className="shadow-md border-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur">
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                  <Input placeholder="Rechercher un inventaire..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-12 h-12 text-lg bg-slate-50 dark:bg-slate-700" />
                 </div>
                 <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-64 h-12"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["all", "pending", "validated"].map(s => (
-                      <SelectItem key={s} value={s}>
-                        {s === "all" ? "Tous" : getStatusBadge(s as any).props.children}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="pending">En cours</SelectItem>
+                    <SelectItem value="validated">Validés</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </CardContent>
           </Card>
 
-          {/* ── Table ── */}
-          <Card>
-            <CardHeader><CardTitle>Liste des Inventaires</CardTitle></CardHeader>
-            <CardContent>
+          {/* Liste */}
+          <Card className="shadow-lg border-0 overflow-hidden bg-white/90 dark:bg-slate-800/90 backdrop-blur">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+              <CardTitle className="text-2xl flex items-center">
+                <FileText className="h-7 w-7 mr-3 text-blue-600 dark:text-blue-400" />
+                Liste des Inventaires
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Numéro</TableHead>
-                    <TableHead>Point de vente</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Lignes</TableHead>
-                    <TableHead>Créé par</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="bg-slate-50 dark:bg-slate-700">
+                    <TableHead className="font-bold"><Hash className="h-4 w-4 inline mr-2" />Numéro</TableHead>
+                    <TableHead className="font-bold"><Building2 className="h-4 w-4 inline mr-2" />Point de vente</TableHead>
+                    <TableHead className="font-bold"><ClipboardList className="h-4 w-4 inline mr-2" />Statut</TableHead>
+                    <TableHead className="font-bold text-center"><Package className="h-4 w-4 inline mr-2" />Lignes</TableHead>
+                    <TableHead className="font-bold"><User className="h-4 w-4 inline mr-2" />Créé par</TableHead>
+                    <TableHead className="font-bold"><Calendar className="h-4 w-4 inline mr-2" />Date</TableHead>
+                    <TableHead className="font-bold text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(i => {
-                    const pv = pointsVente.find(p => p.id === i.point_vente)
-                    return (
-                      <TableRow key={i.id}>
-                        <TableCell className="font-medium">{i.numero_inventaire}</TableCell>
-                        <TableCell>{pv?.nom ?? "—"}</TableCell>
-                        <TableCell>{getStatusBadge(i.status)}</TableCell>
-                        <TableCell>{i.lignes.length}</TableCell>
-                        <TableCell>{i.utilisateur_cree}</TableCell>
-                        <TableCell>{format(new Date(i.date_creation!), "dd MMM yyyy", { locale: fr })}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" onClick={() => openEdit(i)}>
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Modifier</TooltipContent>
-                            </Tooltip>
+                  {filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
+                        <Package className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                        <p className="text-lg">Aucun inventaire trouvé</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filtered.map(i => {
+                      const pv = pointsVente.find(p => p.id === i.point_vente)
+                      const isValidated = i.status === "validate"
 
-                            {i.status === "pending" && (
+                      return (
+                        <TableRow key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                          <TableCell className="font-semibold text-blue-600 dark:text-blue-400">{i.numero_inventaire}</TableCell>
+                          <TableCell className="font-medium flex items-center"><Store className="h-4 w-4 mr-2 text-slate-500" />{pv?.nom || "—"}</TableCell>
+                          <TableCell>{isValidated ? <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">Validé</Badge> : <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">En cours</Badge>}</TableCell>
+                          <TableCell className="text-center font-semibold">{i.lignes.length}</TableCell>
+                          <TableCell>{i.utilisateur_cree}</TableCell>
+                          <TableCell>{format(new Date(i.date_creation!), "dd MMM yyyy", { locale: fr })}</TableCell>
+                          <TableCell>
+                            <div className="flex justify-center gap-2">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button size="sm" className="bg-green-500 text-white hover:bg-green-600" onClick={() => validate(i.id!)}>
-                                    Valider
+                                  <Button size="sm" variant="outline" onClick={() => openView(i)}>
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Valider inventaire</TooltipContent>
+                                <TooltipContent>Voir le détail</TooltipContent>
                               </Tooltip>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
+
+                              {!isValidated && (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="sm" variant="ghost" onClick={() => openEdit(i)}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Modifier</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="sm" className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md" onClick={() => validate(i.id!)}>
+                                        <CheckCircle2 className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Valider l'inventaire</TooltipContent>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
 
-          {/* ── Edit Modal ── */}
+          {/* Modals */}
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: "80vw", maxWidth: "80vw" }}>
-              <DialogHeader><DialogTitle>Modifier Inventaire</DialogTitle></DialogHeader>
-              <InventaireForm
-                onSubmit={handleSubmit(onSubmit)}
-                register={register}
-                control={control}
-                errors={errors}
-                fields={fields}
-                append={append}
-                remove={remove}
-                pointsVente={pointsVente}
-                pointsVenteLoading={pointsVenteLoading}
-                stock={stocks}
-                stockLoading={stockLoading}
-                watch={formWatch}
-                setValue={formSetValue}
-                isEdit={true}
-                onCancel={() => { setIsEditOpen(false); reset(); }}
-              />
+            <DialogContent className=" max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800" style={{ width: "80vw", maxWidth: "80vw" }}>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold flex items-center">
+                  <Edit className="h-7 w-7 mr-3 text-purple-600" />
+                  Modifier l'Inventaire
+                </DialogTitle>
+              </DialogHeader>
+              <InventaireForm mode="edit" onSubmit={handleSubmit(onSubmit)} register={register} control={control} watch={watch} setValue={setValue} fields={fields} append={append} remove={remove} pointsVente={pointsVente} filteredStock={filteredStock} onCancel={() => { setIsEditOpen(false); setCurrentInventaire(null); }} />
             </DialogContent>
           </Dialog>
+
+          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+            <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800" style={{ width: "80vw", maxWidth: "80vw" }}>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold flex items-center">
+                  <Eye className="h-7 w-7 mr-3 text-blue-600" />
+                  Détail de l'Inventaire
+                </DialogTitle>
+              </DialogHeader>
+              <InventaireForm mode="view" onSubmit={() => {}} register={register} control={control} watch={watch} setValue={setValue} fields={fields} append={() => {}} remove={() => {}} pointsVente={pointsVente} filteredStock={filteredStock} onCancel={() => setIsViewOpen(false)} />
+            </DialogContent>
+          </Dialog>
+
         </div>
-      </TooltipProvider>
+      </div>
     </POSLayout>
   )
 }
 
-/* ────────────────────────────────────────────────────────────── */
-/* ──────────────────────── FORM COMPONENT ─────────────────────── */
-/* ────────────────────────────────────────────────────────────── */
-interface FormProps {
-  onSubmit: () => void
-  register: any
-  control: any
-  errors: any
-  fields: any[]
-  append: (obj: any) => void
-  remove: (i: number) => void
-  pointsVente: any[]
-  pointsVenteLoading: boolean
-  stock: any[]
-  stockLoading: boolean
-  watch: (name?: any) => any
-  setValue: (name: any, value: any) => void
-  isEdit: boolean
-  onCancel: () => void
-}
-
-function InventaireForm({
-  onSubmit,
-  register,
-  control,
-  errors,
-  fields,
-  append,
-  remove,
-  pointsVente,
-  pointsVenteLoading,
-  stock,
-  stockLoading,
-  watch,
-  setValue,
-  isEdit,
-  onCancel,
-}: FormProps) {
-  const watchedLignes = watch("lignes") ?? []
+/* Formulaire Magnifique (create / edit / view) */
+function InventaireForm({ mode, onSubmit, register, control, watch, setValue, fields, append, remove, pointsVente, filteredStock, onCancel }: any) {
+  const isViewMode = mode === "view"
+  const watchedPointVente = watch("point_vente")
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      {/* ── Header ── */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Numéro */}
-        <div>
-          <Label>Numéro d'inventaire</Label>
-          <Input {...register("numero_inventaire", { required: "Requis" })} />
-          {errors.numero_inventaire && <p className="text-xs text-destructive">{errors.numero_inventaire.message}</p>}
+    <form onSubmit={isViewMode ? e => e.preventDefault() : onSubmit} className="space-y-8">
+      <div className="grid grid-cols-2 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2 text-blue-600" />Numéro d'inventaire</Label>
+          <Input {...register("numero_inventaire")} readOnly={isViewMode} className="h-12 text-lg" />
         </div>
-
-        {/* Point de vente */}
-        <div>
-          <Label>Point de vente</Label>
-          <Controller
-            name="point_vente"
-            control={control}
-            rules={{ required: "Requis" }}
-            render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value} disabled={pointsVenteLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder={pointsVenteLoading ? "Chargement…" : "Sélectionner"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {pointsVenteLoading ? (
-                    <div className="p-2 text-sm text-muted-foreground">Chargement…</div>
-                  ) : pointsVente.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">Aucun point de vente</div>
-                  ) : (
-                    pointsVente.map((pv: any) => (
-                      <SelectItem key={pv.id} value={pv.id}>{pv.nom}</SelectItem>
-                    ))
-                  )}
-                </SelectContent>
+        <div className="space-y-2">
+          <Label className="text-lg font-semibold flex items-center"><Store className="h-5 w-5 mr-2 text-purple-600" />Point de vente</Label>
+          {isViewMode ? (
+            <div className="h-12 px-4 flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg text-lg font-medium">
+              {pointsVente.find((p: any) => p.id === watchedPointVente)?.nom || "—"}
+            </div>
+          ) : (
+            <Controller name="point_vente" control={control} render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger className="h-12 text-lg"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                <SelectContent>{pointsVente.map((pv: any) => <SelectItem key={pv.id} value={pv.id}>{pv.nom}</SelectItem>)}</SelectContent>
               </Select>
-            )}
-          />
-          {errors.point_vente && <p className="text-xs text-destructive">{errors.point_vente.message}</p>}
+            )} />
+          )}
         </div>
-
-        {/* Créé par – READ ONLY */}
-        <div>
-          <Label>Créé par</Label>
-          <div className="flex items-center h-10 px-3 border rounded-md bg-muted text-sm">
-            {CURRENT_USER?.nom ?? CURRENT_USER?.username ?? "Inconnu"}
+        <div className="space-y-2">
+          <Label className="text-lg font-semibold flex items-center"><User className="h-5 w-5 mr-2 text-green-600" />Créé par</Label>
+          <div className="h-12 px-4 flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg text-lg font-medium">
+            {CURRENT_USER?.nom || CURRENT_USER?.username || "Inconnu"}
           </div>
         </div>
-
-        {/* Commentaire */}
-        <div>
-          <Label>Commentaire (optionnel)</Label>
-          <Input {...register("commentaire")} placeholder="Notes…" />
+        <div className="space-y-2">
+          <Label className="text-lg font-semibold flex items-center"><MessageSquare className="h-5 w-5 mr-2 text-orange-600" />Commentaire (optionnel)</Label>
+          <Input {...register("commentaire")} readOnly={isViewMode} placeholder="Notes..." className="h-12 text-lg" />
         </div>
       </div>
 
-      {/* ── Lignes ── */}
-      <div>
-        <Label>Articles</Label>
-        <div className="border rounded-lg p-4 mt-2">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-2xl font-bold flex items-center"><Package className="h-8 w-8 mr-3 text-blue-600" />Articles à compter</Label>
+          <Badge variant="secondary" className="text-lg px-4 py-2">{fields.length} article{fields.length > 1 ? "s" : ""}</Badge>
+        </div>
+
+        <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 bg-slate-50/50 dark:bg-slate-800/50">
           {fields.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">Aucun article</p>
+            <div className="text-center py-12"><Package className="h-16 w-16 mx-auto mb-4 text-slate-400" /><p className="text-lg text-slate-500">Aucun article ajouté</p></div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Produit</TableHead>
-                  <TableHead className="text-center">Stock système</TableHead>
-                  <TableHead className="text-center">Quantité réelle</TableHead>
-                  <TableHead />
+                <TableRow className="bg-slate-100 dark:bg-slate-700">
+                  <TableHead className="font-bold">Produit</TableHead>
+                  <TableHead className="text-center font-bold">Stock système</TableHead>
+                  <TableHead className="text-center font-bold">Quantité réelle</TableHead>
+                  {!isViewMode && <TableHead />}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {fields.map((field: any, idx: number) => {
-                  const selectedProdId = watchedLignes[idx]?.produit
-                  const stockItem = stock.find((s: any) => s.produit === selectedProdId)
-                  const qtyInStock = stockItem?.quantite_actuelle ?? 0
+                  const prodId = watch(`lignes.${idx}.produit`)
+                  const stockItem = filteredStock.find((s: any) => s.produit === prodId)
+                  const qtyStock = stockItem?.quantite_actuelle ?? 0
+                  const productName = stockItem ? `${stockItem.produit_nom} (${stockItem.produit_reference})` : "—"
 
                   return (
-                    <TableRow key={field.id}>
-                      {/* Produit */}
+                    <TableRow key={field.id} className="hover:bg-slate-50 dark:hover:bg-slate-700">
                       <TableCell>
-                        <Controller
-                          name={`lignes.${idx}.produit`}
-                          control={control}
-                          rules={{ required: "Requis" }}
-                          render={({ field: prodField }) => (
-                            <Select
-                              onValueChange={v => {
-                                prodField.onChange(v)
-                                const item = stock.find((s: any) => s.produit === v)
-                                setValue(`lignes.${idx}.quantite_stock`, item?.quantite_actuelle ?? 0)
-                              }}
-                              value={prodField.value}
-                              disabled={stockLoading}
-                            >
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder={stockLoading ? "Chargement…" : "Produit"} />
-                              </SelectTrigger>
+                        {isViewMode ? (
+                          <span className="font-medium">{productName}</span>
+                        ) : (
+                          <Controller name={`lignes.${idx}.produit`} control={control} render={({ field: f }) => (
+                            <Select onValueChange={(v) => { f.onChange(v); setValue(`lignes.${idx}.quantite_stock`, filteredStock.find((s: any) => s.produit === v)?.quantite_actuelle ?? 0) }} value={f.value}>
+                              <SelectTrigger><SelectValue placeholder="Choisir un produit" /></SelectTrigger>
                               <SelectContent>
-                                {stockLoading ? (
-                                  <div className="p-2 text-sm text-muted-foreground">Chargement…</div>
-                                ) : stock.length === 0 ? (
-                                  <div className="p-2 text-sm text-muted-foreground">Aucun produit</div>
-                                ) : (
-                                  stock.map((s: any) => (
-                                    <SelectItem key={s.id} value={s.produit}>
-                                      {s.produit_nom} ({s.produit_reference})
-                                    </SelectItem>
-                                  ))
-                                )}
+                                {filteredStock.map((s: any) => (
+                                  <SelectItem key={s.id} value={s.produit}>
+                                    <div className="flex justify-between w-full">
+                                      <span>{s.produit_nom} ({s.produit_reference})</span>
+                                      <Badge variant="secondary" className="ml-4">Stock: {s.quantite_actuelle}</Badge>
+                                    </div>
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
-                          )}
-                        />
-                        {errors.lignes?.[idx]?.produit && <p className="text-xs text-destructive mt-1">{errors.lignes[idx].produit.message}</p>}
+                          )} />
+                        )}
                       </TableCell>
-
-                      {/* Stock système (read‑only) */}
+                      <TableCell className="text-center"><div className="font-bold text-lg text-blue-600">{qtyStock}</div></TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          className="h-9 text-center bg-muted"
-                          value={qtyInStock}
-                          readOnly
-                        />
-                        <input type="hidden" {...register(`lignes.${idx}.quantite_stock`)} />
+                        {isViewMode ? (
+                          <div className="text-center text-lg font-bold text-emerald-600">{watch(`lignes.${idx}.quantite_reel`) || 0}</div>
+                        ) : (
+                          <Input type="number" className="h-12 text-center text-lg font-semibold" {...register(`lignes.${idx}.quantite_reel`, { valueAsNumber: true })} />
+                        )}
                       </TableCell>
-
-                      {/* Quantité réelle */}
-                      <TableCell>
-                        <Input
-                          type="number"
-                          className="h-9 text-center"
-                          {...register(`lignes.${idx}.quantite_reel`, {
-                            required: "Requis",
-                            valueAsNumber: true,
-                          })}
-                        />
-                        {errors.lignes?.[idx]?.quantite_reel && <p className="text-xs text-destructive mt-1">{errors.lignes[idx].quantite_reel.message}</p>}
-                      </TableCell>
-
-                      {/* Delete */}
-                      <TableCell>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)} className="text-destructive">
-                          Supprimer
-                        </Button>
-                      </TableCell>
+                      {!isViewMode && (
+                        <TableCell>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)} className="text-red-600 hover:bg-red-50">
+                            <AlertCircle className="h-5 w-5" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   )
                 })}
               </TableBody>
             </Table>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => append({ produit: "", quantite_stock: 0, quantite_reel: 0 })}
-          >
-            <Plus className="h-3 w-3 mr-1" /> Ajouter
-          </Button>
+
+          {!isViewMode && (
+            <Button type="button" variant="outline" size="lg" className="w-full mt-6 border-2 border-dashed border-blue-400 hover:border-blue-600 hover:bg-blue-50" onClick={() => append({ produit: "", quantite_stock: 0, quantite_reel: 0 })}>
+              <Plus className="h-6 w-6 mr-2" />Ajouter un article
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* ── Footer ── */}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>Annuler</Button>
-        <Button type="submit">{isEdit ? "Mettre à jour" : "Créer"} Inventaire</Button>
+      <div className="flex justify-end gap-4 pt-6 border-t">
+        <Button type="button" variant="outline" size="lg" onClick={onCancel}>
+          {isViewMode ? "Fermer" : "Annuler"}
+        </Button>
+        {!isViewMode && (
+          <Button type="submit" size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8">
+            {mode === "edit" ? "Mettre à jour" : "Créer"} l'inventaire
+          </Button>
+        )}
       </div>
     </form>
   )

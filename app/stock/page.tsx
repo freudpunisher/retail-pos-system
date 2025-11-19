@@ -1,432 +1,373 @@
 "use client"
-
 import { useState, useMemo, useEffect } from "react"
 import { POSLayout } from "@/components/pos-layout"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { Search, Package, Store, TrendingUp, TrendingDown, Calendar, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Search, Package, Store, TrendingUp, TrendingDown, Calendar, Filter,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle,
+  Box, Warehouse, Layers
+} from "lucide-react"
 import { useStocks } from "@/hooks/useStock"
 
 export default function StockPage() {
-    const { stocks, loading, error, fetchStocks } = useStocks()
-    const [searchTerm, setSearchTerm] = useState("")
-    const [selectedType, setSelectedType] = useState<string>("")
-    const [selectedPointVente, setSelectedPointVente] = useState<string>("")
-    const [selectedProduit, setSelectedProduit] = useState<string>("")
-    const [currentPage, setCurrentPage] = useState(1)
-    const [itemsPerPage, setItemsPerPage] = useState(10)
+  const { stocks, loading, error , fetchStocks} = useStocks()
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedType, setSelectedType] = useState("all")
+  const [selectedPointVente, setSelectedPointVente] = useState("all")
+  const [selectedProduit, setSelectedProduit] = useState("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
-    useEffect(() => {
-        fetchStocks();
-    }, [fetchStocks]);
 
-    // Extraction des valeurs uniques pour les filtres
-    const types = useMemo(() => {
-        if (!stocks?.length) return []
-        return Array.from(new Set(stocks.map((s) => s.categorie_nom || "Non défini")))
-    }, [stocks])
+  useEffect(() => { fetchStocks() }, [fetchStocks])
 
-    const pointsVente = useMemo(() => {
-        if (!stocks?.length) return []
-        return Array.from(new Set(stocks.map((s) => s.point_vente)))
-    }, [stocks])
+  // Extraction des filtres uniques
+  const types = useMemo(() => {
+    if (!stocks?.length) return []
+    return Array.from(new Set(stocks.map((s: any) => s.categorie_nom || "Non défini")))
+  }, [stocks])
 
-    const produits = useMemo(() => {
-        if (!stocks?.length) return []
-        return Array.from(new Set(stocks.map((s) => s.produit_nom)))
-    }, [stocks])
+  const pointsVente = useMemo(() => {
+    if (!stocks?.length) return []
+    return Array.from(new Set(stocks.map((s: any) => s.point_vente_nom || s.point_vente)))
+  }, [stocks])
 
-    // Application des filtres
-    const filteredStocks = useMemo(() => {
-        return (stocks || []).filter((stock) => {
-            const stockPointVente = stock.point_vente || ''
-            const stockType = stock.categorie_nom || ''
-            const matchesSearch =
-                (stock.produit_nom || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                stockPointVente.toLowerCase().includes(searchTerm.toLowerCase())
+  const produits = useMemo(() => {
+    if (!stocks?.length) return []
+    return Array.from(new Set(stocks.map((s: any) => s.produit_nom)))
+  }, [stocks])
 
-            const matchesType = selectedType && selectedType !== "all" ? stockType === selectedType : true
-            const matchesPointVente = selectedPointVente && selectedPointVente !== "all"
-                ? stockPointVente === selectedPointVente
-                : true
-            const matchesProduit = selectedProduit && selectedProduit !== "all"
-                ? stock.produit_nom === selectedProduit
-                : true
+  // Filtrage
+  const filteredStocks = useMemo(() => {
+    return (stocks || []).filter((stock: any) => {
+      const matchesSearch = 
+        (stock.produit_nom || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (stock.point_vente_nom || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (stock.produit_reference || "").toLowerCase().includes(searchTerm.toLowerCase())
 
-            return matchesSearch && matchesType && matchesPointVente && matchesProduit
-        })
-    }, [stocks, searchTerm, selectedType, selectedPointVente, selectedProduit])
+      const matchesType = selectedType === "all" || (stock.categorie_nom || "Non défini") === selectedType
+      const matchesPV = selectedPointVente === "all" || (stock.point_vente_nom || stock.point_vente) === selectedPointVente
+      const matchesProduit = selectedProduit === "all" || stock.produit_nom === selectedProduit
 
-    // Pagination
-    const totalPages = Math.ceil(filteredStocks.length / itemsPerPage)
-    const paginatedStocks = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage
-        return filteredStocks.slice(startIndex, startIndex + itemsPerPage)
-    }, [filteredStocks, currentPage, itemsPerPage])
+      return matchesSearch && matchesType && matchesPV && matchesProduit
+    })
+  }, [stocks, searchTerm, selectedType, selectedPointVente, selectedProduit])
 
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        setCurrentPage(1)
-    }, [searchTerm, selectedType, selectedPointVente, selectedProduit, itemsPerPage])
+  // Pagination
+  const totalPages = Math.ceil(filteredStocks.length / itemsPerPage)
+  const paginatedStocks = filteredStocks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
-    const formatDate = (dateString?: string | null) => {
-        if (!dateString) return "—"
-        return new Date(dateString).toLocaleDateString("fr-FR", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        })
-    }
+  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedType, selectedPointVente, selectedProduit])
 
-    const getStockStatus = (disponible: number) => {
-        if (disponible === 0) return { label: "Rupture", color: "bg-red-500" }
-        if (disponible < 10) return { label: "Faible", color: "bg-orange-500" }
-        if (disponible < 50) return { label: "Moyen", color: "bg-yellow-500" }
-        return { label: "Bon", color: "bg-green-500" }
-    }
+  const getStockStatus = (qty: number) => {
+    if (qty === 0) return { label: "Rupture", color: "bg-red-500", text: "text-red-600", bg: "bg-red-50 dark:bg-red-900/20" }
+    if (qty <= 5) return { label: "Critique", color: "bg-orange-500", text: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-900/20" }
+    if (qty <= 20) return { label: "Faible", color: "bg-yellow-500", text: "text-yellow-700", bg: "bg-yellow-50 dark:bg-yellow-900/20" }
+    return { label: "Bon", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" }
+  }
 
-    if (loading) {
-        return (
-            <POSLayout currentPath="/stock">
-                <div className="flex items-center justify-center h-96">
-                    <div className="text-center space-y-4">
-                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                        <p className="text-muted-foreground">Chargement des stocks...</p>
-                    </div>
-                </div>
-            </POSLayout>
-        )
-    }
+  const formatDate = (date?: string | null) => {
+    if (!date) return "—"
+    return new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+  }
 
-    if (error) {
-        return (
-            <POSLayout currentPath="/stock">
-                <div className="p-4">
-                    <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                                <Package className="h-5 w-5" />
-                                <span className="font-medium">Erreur: {error}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </POSLayout>
-        )
-    }
-
+  if (loading) {
     return (
-        <POSLayout currentPath="/stock">
-            <TooltipProvider>
-                <div className="space-y-6">
-                    {/* Header with Stats */}
-                    <div className="flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h1 className="text-3xl font-bold tracking-tight">État des Stocks</h1>
-                                <p className="text-muted-foreground mt-1">Gestion et suivi de vos inventaires</p>
-                            </div>
-                        </div>
-
-                        {/* Quick Stats */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Card className="border-l-4 border-l-blue-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Total Produits</p>
-                                            <p className="text-2xl font-bold">{filteredStocks.length}</p>
-                                        </div>
-                                        <Package className="h-8 w-8 text-blue-500" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            
-                            <Card className="border-l-4 border-l-green-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Points de Vente</p>
-                                            <p className="text-2xl font-bold">{pointsVente.length}</p>
-                                        </div>
-                                        <Store className="h-8 w-8 text-green-500" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="border-l-4 border-l-purple-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Catégories</p>
-                                            <p className="text-2xl font-bold">{types.length}</p>
-                                        </div>
-                                        <Filter className="h-8 w-8 text-purple-500" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="border-l-4 border-l-orange-500 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow">
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Stock Total</p>
-                                            <p className="text-2xl font-bold">
-                                                {filteredStocks.reduce((acc, s) => acc + (s.quantite_actuelle || 0), 0)}
-                                            </p>
-                                        </div>
-                                        <TrendingUp className="h-8 w-8 text-orange-500" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
-
-                    {/* Filtres */}
-                    <Card className="bg-white dark:bg-slate-800 shadow-sm">
-                        <CardContent className="pt-6">
-                            <div className="flex flex-wrap gap-4">
-                                {/* Recherche globale */}
-                                <div className="relative flex-1 min-w-[250px]">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Rechercher produit ou point de vente..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 h-11"
-                                    />
-                                </div>
-
-                                {/* Filtre par type (catégorie) */}
-                                <Select value={selectedType} onValueChange={setSelectedType}>
-                                    <SelectTrigger className="w-48 h-11">
-                                        <SelectValue placeholder="Catégorie" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Toutes les catégories</SelectItem>
-                                        {types.map((type) => (
-                                            <SelectItem key={type} value={type}>
-                                                {type}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                {/* Filtre par point de vente */}
-                                <Select value={selectedPointVente} onValueChange={setSelectedPointVente}>
-                                    <SelectTrigger className="w-48 h-11">
-                                        <SelectValue placeholder="Point de vente" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tous les points</SelectItem>
-                                        {pointsVente.map((pv) => (
-                                            <SelectItem key={pv} value={pv}>
-                                                {pv}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                {/* Filtre par produit */}
-                                <Select value={selectedProduit} onValueChange={setSelectedProduit}>
-                                    <SelectTrigger className="w-48 h-11">
-                                        <SelectValue placeholder="Produit" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tous les produits</SelectItem>
-                                        {produits.map((p) => (
-                                            <SelectItem key={p} value={p}>
-                                                {p}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Tableau des stocks */}
-                    <Card className="bg-white dark:bg-slate-800 shadow-sm">
-                        <CardContent className="p-8">
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="bg-muted/50">
-                                            <TableHead className="font-semibold">
-                                                <div className="flex items-center gap-2">
-                                                    <Store className="h-4 w-4" />
-                                                    Point de vente
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="font-semibold">
-                                                <div className="flex items-center gap-2">
-                                                    <Package className="h-4 w-4" />
-                                                    Produit
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="font-semibold text-center">Qté actuelle</TableHead>
-                                            <TableHead className="font-semibold text-center">Qté réservée</TableHead>
-                                            <TableHead className="font-semibold text-center">Disponible</TableHead>
-                                            <TableHead className="font-semibold">Statut</TableHead>
-                                            <TableHead className="font-semibold">
-                                                <div className="flex items-center gap-2">
-                                                    <TrendingUp className="h-4 w-4" />
-                                                    Dernière entrée
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="font-semibold">
-                                                <div className="flex items-center gap-2">
-                                                    <TrendingDown className="h-4 w-4" />
-                                                    Dernière sortie
-                                                </div>
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {paginatedStocks.length > 0 ? (
-                                            paginatedStocks.map((stock) => {
-                                                const status = getStockStatus(stock.quantite_disponible || 0)
-                                                return (
-                                                    <TableRow key={stock.id} className="hover:bg-muted/30 transition-colors">
-                                                        <TableCell className="font-medium">{stock.point_vente_nom}</TableCell>
-                                                        <TableCell>{stock.produit_nom}</TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Badge variant="outline" className="font-mono">
-                                                                {stock.quantite_actuelle}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Badge variant="outline" className="font-mono">
-                                                                {stock.quantite_reservee}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Badge variant="secondary" className="font-mono font-semibold">
-                                                                {stock.quantite_disponible}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-2">
-                                                                <div className={`w-2 h-2 rounded-full ${status.color}`}></div>
-                                                                <span className="text-sm">{status.label}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                                <Calendar className="h-3 w-3" />
-                                                                <span className="text-sm">{formatDate(stock.date_derniere_entree)}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                                <Calendar className="h-3 w-3" />
-                                                                <span className="text-sm">{formatDate(stock.date_derniere_sortie)}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )
-                                            })
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={8} className="text-center py-12">
-                                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                        <Package className="h-12 w-12 opacity-20" />
-                                                        <p className="font-medium">Aucun stock trouvé</p>
-                                                        <p className="text-sm">Essayez de modifier vos filtres</p>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-
-                            {/* Pagination Controls */}
-                            {filteredStocks.length > 0 && (
-                                <div className="flex items-center justify-between px-6 py-4 border-t">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">Lignes par page:</span>
-                                        <Select
-                                            value={itemsPerPage.toString()}
-                                            onValueChange={(value) => setItemsPerPage(Number(value))}
-                                        >
-                                            <SelectTrigger className="w-20 h-9">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="5">5</SelectItem>
-                                                <SelectItem value="10">10</SelectItem>
-                                                <SelectItem value="20">20</SelectItem>
-                                                <SelectItem value="50">50</SelectItem>
-                                                <SelectItem value="100">100</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <span className="text-sm text-muted-foreground ml-4">
-                                            Affichage {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredStocks.length)} sur {filteredStocks.length} résultats
-                                        </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => setCurrentPage(1)}
-                                            disabled={currentPage === 1}
-                                            className="h-9 w-9"
-                                        >
-                                            <ChevronsLeft className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                            disabled={currentPage === 1}
-                                            className="h-9 w-9"
-                                        >
-                                            <ChevronLeft className="h-4 w-4" />
-                                        </Button>
-                                        
-                                        <div className="flex items-center gap-1 px-3">
-                                            <span className="text-sm font-medium">Page {currentPage}</span>
-                                            <span className="text-sm text-muted-foreground">sur {totalPages}</span>
-                                        </div>
-
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                            disabled={currentPage === totalPages}
-                                            className="h-9 w-9"
-                                        >
-                                            <ChevronRight className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => setCurrentPage(totalPages)}
-                                            disabled={currentPage === totalPages}
-                                            className="h-9 w-9"
-                                        >
-                                            <ChevronsRight className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-            </TooltipProvider>
-        </POSLayout>
+      <POSLayout currentPath="/stock">
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+            <p className="text-xl text-slate-600 dark:text-slate-400">Chargement des stocks en cours...</p>
+          </div>
+        </div>
+      </POSLayout>
     )
+  }
+
+  if (error) {
+    return (
+      <POSLayout currentPath="/stock">
+        <div className="p-8">
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/30">
+            <CardContent className="pt-6 flex items-center gap-3">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+              <div>
+                <p className="font-semibold text-red-800 dark:text-red-300">Erreur de chargement</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </POSLayout>
+    )
+  }
+
+  return (
+    <POSLayout currentPath="/stock">
+      <TooltipProvider>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+          <div className="p-6 space-y-8 max-w-7xl mx-auto">
+
+            {/* Header Magnifique */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl">
+                    <Warehouse className="h-12 w-12 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-4xl font-extrabold text-slate-800 dark:text-slate-100">État des Stocks</h1>
+                    <p className="text-lg text-slate-600 dark:text-slate-400 mt-2 flex items-center">
+                      <Layers className="h-5 w-5 mr-2 text-blue-500" />
+                      Suivi en temps réel de tous vos produits
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats Premium */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-xl border-0 overflow-hidden">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-blue-100">Produits totaux</p>
+                      <p className="text-3xl font-bold mt-1">{filteredStocks.length}</p>
+                    </div>
+                    <Package className="h-12 w-12 opacity-80" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-xl border-0">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-emerald-100">Points de vente</p>
+                      <p className="text-3xl font-bold mt-1">{pointsVente.length}</p>
+                    </div>
+                    <Store className="h-12 w-12 opacity-80" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-xl border-0">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-100">Catégories</p>
+                      <p className="text-3xl font-bold mt-1">{types.length}</p>
+                    </div>
+                    <Filter className="h-12 w-12 opacity-80" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-xl border-0">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-orange-100">Stock total</p>
+                      <p className="text-3xl font-bold mt-1">
+                        {filteredStocks.reduce((acc: number, s: any) => acc + (s.quantite_disponible || 0), 0)}
+                      </p>
+                    </div>
+                    <TrendingUp className="h-12 w-12 opacity-80" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Filtres Pro */}
+            <Card className="shadow-lg border-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur">
+              <CardContent className="pt-6">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <Input
+                      placeholder="Rechercher un produit, référence ou point de vente..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-12 h-14 text-lg bg-slate-50 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <Select value={selectedType} onValueChange={setSelectedType}>
+                    <SelectTrigger className="w-64 h-14">
+                      <SelectValue placeholder="Toutes les catégories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes les catégories</SelectItem>
+                      {types.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedPointVente} onValueChange={setSelectedPointVente}>
+                    <SelectTrigger className="w-64 h-14">
+                      <SelectValue placeholder="Tous les points de vente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les points de vente</SelectItem>
+                      {pointsVente.map((pv) => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tableau Ultra Pro */}
+            <Card className="shadow-2xl border-0 overflow-hidden bg-white/95 dark:bg-slate-800/95 backdrop-blur">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+                <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                  <Box className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                  Détail des Stocks par Produit
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50 dark:bg-slate-700">
+                        <TableHead className="font-bold text-slate-700 dark:text-slate-300"><Store className="h-5 w-5 inline mr-2" />Point de vente</TableHead>
+                        <TableHead className="font-bold text-slate-700 dark:text-slate-300"><Package className="h-5 w-5 inline mr-2" />Produit</TableHead>
+                        <TableHead className="font-bold text-center text-slate-700 dark:text-slate-300">Qté Actuelle</TableHead>
+                        <TableHead className="font-bold text-center text-slate-700 dark:text-slate-300">Réservée</TableHead>
+                        <TableHead className="font-bold text-center text-slate-700 dark:text-slate-300">Disponible</TableHead>
+                        <TableHead className="font-bold text-center text-slate-700 dark:text-slate-300">Statut</TableHead>
+                        <TableHead className="font-bold text-slate-700 dark:text-slate-300"><TrendingUp className="h-5 w-5 inline mr-2" />Dernière entrée</TableHead>
+                        <TableHead className="font-bold text-slate-700 dark:text-slate-300"><TrendingDown className="h-5 w-5 inline mr-2" />Dernière sortie</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedStocks.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-16">
+                            <Package className="h-20 w-20 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+                            <p className="text-xl font-medium text-slate-500 dark:text-slate-400">Aucun stock trouvé</p>
+                            <p className="text-slate-400">Modifiez vos filtres pour voir les résultats</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginatedStocks.map((stock: any) => {
+                          const status = getStockStatus(stock.quantite_disponible || 0)
+                          return (
+                            <TableRow key={stock.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all duration-200">
+                              <TableCell className="font-semibold text-blue-600 dark:text-blue-400">
+                                <div className="flex items-center gap-2">
+                                  <Store className="h-4 w-4" />
+                                  {stock.point_vente_nom || stock.point_vente}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{stock.produit_nom}</p>
+                                  <p className="text-sm text-slate-500">Ref: {stock.produit_reference || "—"}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className="text-lg px-3 py-1 font-mono">
+                                  {stock.quantite_actuelle || 0}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="secondary" className="font-mono">
+                                  {stock.quantite_reservee || 0}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge className={`text-lg font-bold font-mono ${status.text} ${status.bg}`}>
+                                  {stock.quantite_disponible || 0}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <div className="flex items-center justify-center gap-2">
+                                      <div className={`w-3 h-3 rounded-full ${status.color} animate-pulse`}></div>
+                                      <span className="font-semibold">{status.label}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{status.label} stock</TooltipContent>
+                                </Tooltip>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 text-emerald-600">
+                                  <Calendar className="h-4 w-4" />
+                                  <span className="text-sm font-medium">{formatDate(stock.date_derniere_entree)}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 text-red-600">
+                                  <Calendar className="h-4 w-4" />
+                                  <span className="text-sm font-medium">{formatDate(stock.date_derniere_sortie)}</span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Pagination Premium */}
+                {filteredStocks.length > 0 && (
+                  <div className="border-t bg-slate-50/80 dark:bg-slate-800/80 px-6 py-5">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                        <span>Lignes par page :</span>
+                        <Select value={itemsPerPage.toString()} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1) }}>
+                          <SelectTrigger className="w-20 h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[10, 20, 50, 100].map(n => <SelectItem key={n} value={n.toString()}>{n}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <span className="font-medium">
+                          {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredStocks.length)} sur {filteredStocks.length}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+                          <ChevronsLeft className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg font-semibold text-blue-700 dark:text-blue-300">
+                          Page {currentPage} / {totalPages}
+                        </div>
+                        <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>
+                          <ChevronsRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+          </div>
+        </div>
+      </TooltipProvider>
+    </POSLayout>
+  )
 }
