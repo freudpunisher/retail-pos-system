@@ -118,7 +118,7 @@ export default function StockPage() {
     <POSLayout currentPath="/stock">
       <TooltipProvider>
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <div className="p-6 space-y-8 max-w-7xl mx-auto">
+          <div className="p-6 space-y-8  mx-auto">
 
             {/* Header Magnifique */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8">

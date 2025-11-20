@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
 import { CreatePurchaseOrderRequest, PurchaseOrderResponse, UpdatePurchaseOrderRequest } from "@/types/PurchaseOrder";
+import { fetchCommandesFournisseurs, fetchFournisseurs, fetchProduits } from "@/services/commandesFournisseursService";
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   draft: { label: "Brouillon", color: "bg-slate-500", icon: <FileText className="h-4 w-4" /> },
@@ -30,7 +31,9 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.R
 export default function PurchaseOrdersPage() {
   const {
     purchaseOrders, fournisseurs, pointsVente, produits, loading, error,
-    fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder
+    fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder,
+    fetchFournisseurs, fetchPointsVente,
+    fetchProduits
   } = usePurchaseOrders();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,16 +44,19 @@ export default function PurchaseOrdersPage() {
   const [currentOrder, setCurrentOrder] = useState<PurchaseOrderResponse | null>(null);
 
   const [formData, setFormData] = useState<any>({
-    status: "draft",
+    status: "confirmed",
     date_livraison_prevue: "",
     commentaire: "",
     fournisseur: "",
     point_vente: "",
-    items: [],
+    lignes: [],
   });
 
   useEffect(() => {
     fetchPurchaseOrders();
+    fetchFournisseurs();
+    fetchPointsVente();
+    fetchProduits();  
   }, []);
 
   // Stats
@@ -60,6 +66,7 @@ export default function PurchaseOrdersPage() {
     const pending = purchaseOrders.filter(p => ["sent", "confirmed"].includes(p.status)).length;
     const received = purchaseOrders.filter(p => p.status === "received").length;
     const totalAmount = purchaseOrders.reduce((sum, p) => sum + (p.montant_total || 0), 0);
+    console.log("Recalculating stats:", { total, draft, pending, received, totalAmount });
     return { total, draft, pending, received, totalAmount };
   }, [purchaseOrders]);
 
@@ -81,9 +88,9 @@ export default function PurchaseOrdersPage() {
       commentaire: order.commentaire || "",
       fournisseur: order.fournisseur,
       point_vente: order.point_vente,
-      items: (order.lignes ?? []).map(l => ({
+      lignes: (order.lignes ?? []).map(l => ({
         id: l.id,
-        produit: l.produit,
+        produit: l.id,
         quantite_commandee: l.quantite_commandee,
         quantite_recue: l.quantite_recue,
         prix_unitaire: l.prix_unitaire,
@@ -101,7 +108,7 @@ export default function PurchaseOrdersPage() {
       commentaire: order.commentaire || "",
       fournisseur: order.fournisseur,
       point_vente: order.point_vente,
-      items: (order.lignes ?? []).map(l => ({
+      lignes: (order.lignes ?? []).map(l => ({
         produit: l.produit,
         quantite_commandee: l.quantite_commandee,
         quantite_recue: l.quantite_recue,
@@ -128,7 +135,7 @@ export default function PurchaseOrdersPage() {
     <POSLayout currentPath="/stock/purchase-orders">
       <TooltipProvider>
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <div className="p-6 space-y-8 max-w-7xl mx-auto">
+          <div className="p-6 space-y-8  mx-auto">
 
             {/* Header Premium */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-8">
@@ -150,7 +157,17 @@ export default function PurchaseOrdersPage() {
                 <Button
                   size="lg"
                   className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg"
-                  onClick={() => setIsAddOpen(true)}
+                 onClick={() => {
+    setFormData({
+      status: "confirmed",                    // ← Ici aussi !
+      date_livraison_prevue: "",
+      commentaire: "",
+      fournisseur: "",
+      point_vente: "",
+      lignes: [],
+    });
+    setIsAddOpen(true);
+  }}
                 >
                   <Plus className="h-6 w-6 mr-2" />
                   Nouvelle Commande
@@ -364,12 +381,12 @@ export default function PurchaseOrdersPage() {
                     await createPurchaseOrder(data);
                     setIsAddOpen(false);
                     setFormData({
-                      status: "draft",
+                      status: "confirmed",
                       date_livraison_prevue: "",
                       commentaire: "",
                       fournisseur: "",
                       point_vente: "",
-                      items: [],
+                      lignes: [],
                     });
                   }}
                   onCancel={() => setIsAddOpen(false)}
@@ -447,28 +464,35 @@ export default function PurchaseOrdersPage() {
 
 function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVente, produits, onSubmit, onCancel }: any) {
   const isViewMode = mode === "view";
-  const isEditMode = mode === "edit";
+  const isCreateMode = mode === "create";
 
-  const calculateLineTotal = (q: number, p: number) => (q || 0) * (p || 0);
-  const totalCommande = formData.items.reduce((sum: number, item: any) => sum + calculateLineTotal(item.quantite_commandee, item.prix_unitaire), 0);
+  // On utilise UNIQUEMENT "items" partout (plus cohérent avec le reste du code)
+  const lignes = formData.lignes || [];
+
+  // Calcul du total – maintenant ça marche !
+  const totalCommande = lignes.reduce((sum: number, item: any) => {
+    const qty = Number(item.quantite_commandee) || 0;
+    const price = Number(item.prix_unitaire) || 0;
+    return sum + qty * price;
+  }, 0);
 
   const handleItemChange = (index: number, field: string, value: any) => {
-    const newItems = [...formData.items];
+    const newItems = [...lignes];
     newItems[index] = { ...newItems[index], [field]: value };
-    setFormData({ ...formData, items: newItems });
+    setFormData({ ...formData, lignes: newItems });
   };
 
   const addItem = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 }],
+      lignes: [...lignes, { produit: "", quantite_commandee: 1, quantite_recue: 0, prix_unitaire: 0 }],
     });
   };
 
   const removeItem = (index: number) => {
     setFormData({
       ...formData,
-      items: formData.items.filter((_: any, i: number) => i !== index),
+      lignes: lignes.filter((_: any, i: number) => i !== index),
     });
   };
 
@@ -480,19 +504,48 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
       }}
       className="space-y-8 mt-6"
     >
-      {/* Infos principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 space-y-8 md:space-y-0">
+      {/* === EN-TÊTE : Statut + Fournisseur + Point de vente + Date === */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Statut automatique en création */}
+        {isCreateMode && (
+          <div className="space-y-2">
+            <Label className="text-lg font-semibold">Statut</Label>
+            <div className="h-12 px-5 flex items-center bg-blue-100 dark:bg-blue-900/40 rounded-lg text-lg font-bold text-blue-700 dark:text-blue-300">
+              <Package className="h-5 w-5 mr-2" />
+             Confirme (automatique)
+            </div>
+          </div>
+        )}
+
+        {/* Statut en vue/édition */}
+        {!isCreateMode && (
+          <div className="space-y-2">
+            <Label className="text-lg font-semibold">Statut</Label>
+            <div className={`h-12 px-5 flex items-center rounded-lg text-white text-lg font-semibold ${statusConfig[formData.status]?.color || "bg-slate-500"}`}>
+              {statusConfig[formData.status]?.icon}
+              <span className="ml-2">{statusConfig[formData.status]?.label || "Inconnu"}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Fournisseur */}
         <div className="space-y-2">
-          <Label className="text-lg font-semibold flex items-center gap-2">
-            Fournisseur
+          <Label className="text-lg font-semibold flex items-center gap-1">
+            Fournisseur <span className="text-red-500">*</span>
           </Label>
           {isViewMode ? (
             <div className="h-12 px-4 flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg text-lg font-medium">
               {fournisseurs.find((f: any) => f.id === formData.fournisseur)?.nom || "—"}
             </div>
           ) : (
-            <Select value={formData.fournisseur} onValueChange={(v) => setFormData({ ...formData, fournisseur: v })} disabled={isViewMode}>
-              <SelectTrigger className="h-12 text-lg"><SelectValue placeholder="Choisir..." /></SelectTrigger>
+            <Select
+              value={formData.fournisseur}
+              onValueChange={(v) => setFormData({ ...formData, fournisseur: v })}
+              required={!isViewMode}
+            >
+              <SelectTrigger className="h-12 text-lg">
+                <SelectValue placeholder="Sélectionner un fournisseur" />
+              </SelectTrigger>
               <SelectContent>
                 {fournisseurs.map((f: any) => (
                   <SelectItem key={f.id} value={f.id}>{f.nom}</SelectItem>
@@ -502,17 +555,18 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
           )}
         </div>
 
+        {/* Point de vente */}
         <div className="space-y-2">
-          <Label className="text-lg font-semibold flex items-center gap-2">
-            Point de vente
-          </Label>
+          <Label className="text-lg font-semibold">Point de vente</Label>
           {isViewMode ? (
             <div className="h-12 px-4 flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg text-lg font-medium">
               {pointsVente.find((p: any) => p.id === formData.point_vente)?.nom || "—"}
             </div>
           ) : (
-            <Select value={formData.point_vente} onValueChange={(v) => setFormData({ ...formData, point_vente: v })} disabled={isViewMode}>
-              <SelectTrigger className="h-12 text-lg"><SelectValue placeholder="Choisir..." /></SelectTrigger>
+            <Select value={formData.point_vente} onValueChange={(v) => setFormData({ ...formData, point_vente: v })}>
+              <SelectTrigger className="h-12 text-lg">
+                <SelectValue placeholder="Choisir..." />
+              </SelectTrigger>
               <SelectContent>
                 {pointsVente.map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>{p.nom}</SelectItem>
@@ -522,13 +576,12 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
           )}
         </div>
 
+        {/* Date livraison */}
         <div className="space-y-2">
-          <Label className="text-lg font-semibold flex items-center gap-2">
-            Date livraison prévue
-          </Label>
+          <Label className="text-lg font-semibold">Date livraison prévue</Label>
           <Input
             type="date"
-            value={formData.date_livraison_prevue}
+            value={formData.date_livraison_prevue || ""}
             onChange={(e) => setFormData({ ...formData, date_livraison_prevue: e.target.value })}
             disabled={isViewMode}
             className="h-12 text-lg"
@@ -536,10 +589,9 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
         </div>
       </div>
 
+      {/* Commentaire */}
       <div className="space-y-2">
-        <Label className="text-lg font-semibold flex items-center gap-2">
-          Commentaire (facultatif)
-        </Label>
+        <Label className="text-lg font-semibold">Commentaire (facultatif)</Label>
         <Textarea
           value={formData.commentaire || ""}
           onChange={(e) => setFormData({ ...formData, commentaire: e.target.value })}
@@ -549,19 +601,19 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
         />
       </div>
 
-      {/* Articles */}
+      {/* === ARTICLES === */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Label className="text-2xl font-bold flex items-center gap-3">
             Articles commandés
           </Label>
           <Badge variant="secondary" className="text-xl px-5 py-2">
-            {formData.items.length} article{formData.items.length > 1 ? "s" : ""}
+            {lignes.length} article{lignes.length > 1 ? "s" : ""}
           </Badge>
         </div>
 
         <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 bg-slate-50/50 dark:bg-slate-800/50">
-          {formData.items.length === 0 ? (
+          {lignes.length === 0 ? (
             <div className="text-center py-16 text-slate-500">
               <Package className="h-20 w-20 mx-auto mb-4 opacity-40" />
               <p className="text-xl">Aucun article ajouté</p>
@@ -579,8 +631,10 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {formData.items.map((item: any, i: number) => {
+                {lignes.map((item: any, i: number) => {
                   const produit = produits.find((p: any) => p.id === item.produit);
+                  const lineTotal = (item.quantite_commandee || 0) * (item.prix_unitaire || 0);
+
                   return (
                     <TableRow key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700">
                       <TableCell>
@@ -597,36 +651,42 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
                           </Select>
                         )}
                       </TableCell>
+
                       <TableCell className="text-center">
                         {isViewMode ? item.quantite_commandee : (
                           <Input
                             type="number"
-                            value={item.quantite_commandee}
+                            value={item.quantite_commandee || ""}
                             onChange={(e) => handleItemChange(i, "quantite_commandee", Number(e.target.value))}
                             className="w-24 text-center"
                             min="1"
                           />
                         )}
                       </TableCell>
+
                       <TableCell className="text-center font-medium text-emerald-600">
                         {item.quantite_recue || 0}
                       </TableCell>
+
                       <TableCell className="text-center">
                         {isViewMode ? (
-                          <span className="font-mono">{item.prix_unitaire.toLocaleString()} FBU</span>
+                          <span className="font-mono">{Number(item.prix_unitaire).toLocaleString()} FBU</span>
                         ) : (
                           <Input
                             type="number"
-                            value={item.prix_unitaire}
+                            value={item.prix_unitaire || ""}
                             onChange={(e) => handleItemChange(i, "prix_unitaire", Number(e.target.value))}
                             className="w-32 text-center"
                             min="0"
+                            step="100"
                           />
                         )}
                       </TableCell>
+
                       <TableCell className="text-center font-bold text-lg">
-                        {calculateLineTotal(item.quantite_commandee, item.prix_unitaire).toLocaleString()} FBU
+                        {lineTotal.toLocaleString()} FBU
                       </TableCell>
+
                       {!isViewMode && (
                         <TableCell className="text-center">
                           <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="text-red-600 hover:bg-red-50">
@@ -649,8 +709,10 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
           )}
         </div>
 
-        {/* Total */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-8 -m-6 mt-8">
+        </div>
+
+        {/* === TOTAL COMMANDE === */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-8 -mx-6 -mb-6 mt-10">
           <div className="flex justify-between items-center">
             <span className="text-2xl font-bold">TOTAL COMMANDE</span>
             <span className="text-4xl font-extrabold">
@@ -658,10 +720,10 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
             </span>
           </div>
         </div>
-      </div>
+     
 
-      {/* Boutons */}
-      <div className="flex justify-end gap-4 pt-6 border-t">
+      {/* === BOUTONS === */}
+      <div className="flex justify-end gap-4 pt-6 border-t mt-6">
         <Button type="button" variant="outline" size="lg" onClick={onCancel}>
           {isViewMode ? "Fermer" : "Annuler"}
         </Button>
@@ -671,7 +733,7 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
             size="lg"
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-10 text-lg font-bold"
           >
-            {isEditMode ? "Mettre à jour" : "Créer la commande"}
+            {mode === "edit" ? "Mettre à jour" : "Créer la commande"}
           </Button>
         )}
       </div>

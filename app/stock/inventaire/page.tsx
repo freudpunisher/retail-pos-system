@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useForm, Controller, useFieldArray } from "react-hook-form"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -28,8 +28,8 @@ import { getCurrentUser } from "@/lib/auth"
 const CURRENT_USER = getCurrentUser()
 
 export default function InventairePage() {
-  const { pointsVente, pointsVenteLoading } = usePointsVente()
-  const { stocks, loading: stockLoading } = useStocks()
+  const { pointsVente, pointsVenteLoading , fetchPointsVente} = usePointsVente()
+  const { stocks, loading: stockLoading, fetchStocks } = useStocks()
   const { inventaires, loading: invLoading, add, edit, validate } = useInventaires()
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -39,7 +39,20 @@ export default function InventairePage() {
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [currentInventaire, setCurrentInventaire] = useState<Inventaire | null>(null)
 
-  const { register, control, handleSubmit, reset, watch, setValue } = useForm({
+  type Ligne = {
+    produit: string
+    quantite_stock: number
+    quantite_reel: number
+  }
+
+  type FormValues = {
+    numero_inventaire: string
+    point_vente: string
+    commentaire: string
+    lignes: Ligne[]
+  }
+
+  const { register, control, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
     defaultValues: {
       numero_inventaire: `INV-${Date.now()}`,
       point_vente: "",
@@ -48,7 +61,7 @@ export default function InventairePage() {
     },
   })
 
-  const { fields, append, remove } = useFieldArray({ control, name: "lignes" })
+  const { fields, append, remove } = useFieldArray<FormValues, "lignes">({ control, name: "lignes" })
   const watchedPointVente = watch("point_vente")
   const filteredStock = watchedPointVente ? stocks.filter((s: any) => s.point_vente === watchedPointVente) : []
 
@@ -57,6 +70,12 @@ export default function InventairePage() {
     const matchesStatus = selectedStatus === "all" || i.status === selectedStatus
     return matchesSearch && matchesStatus
   })
+
+  useEffect(() => {
+    fetchPointsVente();
+    fetchStocks();
+
+  }, [])
 
   const onSubmit = async (data: any) => {
     const payload = {
@@ -133,7 +152,7 @@ export default function InventairePage() {
   return (
     <POSLayout currentPath="/stock/inventaire">
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="p-6 space-y-8 max-w-7xl mx-auto">
+        <div className="p-6 space-y-8  mx-auto">
 
           {/* Header Magnifique */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 p-8">
