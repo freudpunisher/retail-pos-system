@@ -217,7 +217,7 @@ export default function ProductsPage() {
 
           {/* Tabs */}
           <Tabs defaultValue="products" className="space-y-8">
-            <TabsList className="grid w-full grid-cols-2 h-16 text-lg font-bold bg-gradient-to-r from-blue-600/20 to-blue-700/30 backdrop-blur-md border border-blue-500/30">
+            <TabsList className="grid w-full grid-cols-2 h-16 text-lg font-bold bg-blue-900/40 backdrop-blur-xl border border-blue-400/20 shadow-2xl">
   <TabsTrigger 
     value="products" 
     className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-blue-300 hover:data-[state=inactive]:bg-blue-600/40 transition-all duration-200 rounded-l-lg"
