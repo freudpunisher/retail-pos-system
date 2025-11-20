@@ -217,14 +217,20 @@ export default function ProductsPage() {
 
           {/* Tabs */}
           <Tabs defaultValue="products" className="space-y-8">
-            <TabsList className="grid w-full grid-cols-2 h-16 text-lg font-bold bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30">
-              <TabsTrigger value="products" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                <Package className="h-6 w-6 mr-3" /> Produits
-              </TabsTrigger>
-              <TabsTrigger value="categories" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                <Tag className="h-6 w-6 mr-3" /> Catégories
-              </TabsTrigger>
-            </TabsList>
+            <TabsList className="grid w-full grid-cols-2 h-16 text-lg font-bold bg-gradient-to-r from-blue-600/20 to-blue-700/30 backdrop-blur-md border border-blue-500/30">
+  <TabsTrigger 
+    value="products" 
+    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-blue-300 hover:data-[state=inactive]:bg-blue-600/40 transition-all duration-200 rounded-l-lg"
+  >
+    <Package className="h-6 w-6 mr-3" /> Produits
+  </TabsTrigger>
+  <TabsTrigger 
+    value="categories" 
+    className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-blue-300 hover:data-[state=inactive]:bg-blue-600/40 transition-all duration-200 rounded-r-lg"
+  >
+    <Tag className="h-6 w-6 mr-3" /> Catégories
+  </TabsTrigger>
+</TabsList>
 
             {/* === PRODUITS === */}
             <TabsContent value="products" className="space-y-8">
