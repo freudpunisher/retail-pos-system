@@ -34,7 +34,7 @@ export default function MovementsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
 
-  // === Helpers ===
+  // Helpers
   const getProductName = (id: string) => products.find(p => p.id === id)?.nom || "Produit inconnu";
   const getPointVenteName = (id: string) => pointsVente.find(p => p.id === id)?.nom || "Inconnu";
   const getUserName = (id: string) => {
@@ -48,13 +48,13 @@ export default function MovementsPage() {
       sortie: { icon: <TrendingDown className="h-5 w-5" />, color: "bg-red-500", label: "Sortie" },
       transfert_in: { icon: <ArrowRightLeft className="h-5 w-5 rotate-180" />, color: "bg-blue-500", label: "Transf. entrant" },
       transfert_out: { icon: <ArrowRightLeft className="h-5 w-5" />, color: "bg-orange-500", label: "Transf. sortant" },
-      ajustement: { icon: <Package className="h-5 w-5" />, color: "bg-purple-500", label: "Ajustement" },
+      ajustement: { icon: <Package className="h-5 w-5" />, color: "bg-indigo-500", label: "Ajustement" },
       inventaire: { icon: <Package className="h-5 w-5" />, color: "bg-slate-500", label: "Inventaire" },
     };
     return config[type] || { icon: <Package className="h-5 w-5" />, color: "bg-muted", label: type };
   };
 
-  // === Filtrage & Stats ===
+  // Filtrage & Stats
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
       const productName = getProductName(m.stock).toLowerCase();
@@ -75,7 +75,6 @@ export default function MovementsPage() {
     return { totalMovements: filteredMovements.length, totalEntrees, totalSorties, totalValue };
   }, [filteredMovements]);
 
-  // === Pagination ===
   const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
   const paginated = filteredMovements.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -83,12 +82,11 @@ export default function MovementsPage() {
 
   const formatDate = (date: string) => format(new Date(date), "dd MMM yyyy 'à' HH:mm", { locale: fr });
 
-  // === Loading & Error States ===
   if (loading) {
     return (
       <POSLayout currentPath="/stock/mouvements">
         <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <Loader2 className="h-16 w-16 animate-spin text-purple-600 mb-6" />
+          <Loader2 className="h-16 w-16 animate-spin text-blue-600 mb-6" />
           <p className="text-xl text-slate-600 dark:text-slate-400">Chargement des mouvements de stock...</p>
         </div>
       </POSLayout>
@@ -104,7 +102,7 @@ export default function MovementsPage() {
               <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
               <p className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Erreur de chargement</p>
               <p className="text-muted-foreground mb-6">{error}</p>
-              <Button onClick={refetch} size="lg" className="bg-red-600 hover:bg-red-700">
+              <Button onClick={refetch} size="lg" className="bg-blue-600 hover:bg-blue-700">
                 <RefreshCw className="h-5 w-5 mr-2" />
                 Réessayer
               </Button>
@@ -120,19 +118,19 @@ export default function MovementsPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="p-6 space-y-8 max-w-screen-2xl mx-auto">
 
-          {/* === Header Premium === */}
+          {/* Header BLEU PROFESSIONNEL */}
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
-                <div className="p-5 bg-gradient-to-br from-purple-600 to-pink-600 rounded-3xl shadow-2xl">
+                <div className="p-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl shadow-2xl">
                   <ArrowRightLeft className="h-16 w-16 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-5xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  <h1 className="text-5xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                     Mouvements de Stock
                   </h1>
                   <p className="text-xl text-slate-600 dark:text-slate-400 mt-2 flex items-center gap-2">
-                    <Package className="h-6 w-6 text-purple-600" />
+                    <Package className="h-6 w-6 text-blue-600" />
                     Suivi complet et en temps réel des entrées/sorties
                   </p>
                 </div>
@@ -141,7 +139,7 @@ export default function MovementsPage() {
                 size="lg"
                 onClick={refetch}
                 disabled={loading}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-xl"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl"
               >
                 {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <RefreshCw className="h-6 w-6 mr-3" />}
                 Actualiser
@@ -149,13 +147,13 @@ export default function MovementsPage() {
             </div>
           </div>
 
-          {/* === Stats Magnifiques === */}
+          {/* Stats en BLEU CORPORATE */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-2xl border-0 overflow-hidden">
+            <Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-2xl border-0 overflow-hidden">
               <CardContent className="pt-8 pb-10">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-purple-100 text-lg">Total Mouvements</p>
+                    <p className="text-blue-100 text-lg">Total Mouvements</p>
                     <p className="text-5xl font-extrabold mt-2">{stats.totalMovements.toLocaleString()}</p>
                   </div>
                   <ArrowRightLeft className="h-20 w-20 opacity-30" />
@@ -187,7 +185,7 @@ export default function MovementsPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white shadow-2xl border-0">
+            <Card className="bg-gradient-to-br from-indigo-600 to-blue-700 text-white shadow-2xl border-0">
               <CardContent className="pt-8">
                 <div className="flex items-center justify-between">
                   <div>
@@ -200,7 +198,7 @@ export default function MovementsPage() {
             </Card>
           </div>
 
-          {/* === Filtres === */}
+          {/* Filtres */}
           <Card className="shadow-xl border-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur">
             <CardContent className="pt-6">
               <div className="flex flex-col lg:flex-row gap-4">
@@ -229,11 +227,11 @@ export default function MovementsPage() {
             </CardContent>
           </Card>
 
-          {/* === Tableau Ultra Pro === */}
+          {/* Tableau BLEU PRO */}
           <Card className="shadow-2xl border-0 overflow-hidden bg-white/95 dark:bg-slate-800/95 backdrop-blur">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30">
               <CardTitle className="text-3xl font-bold flex items-center gap-4">
-                <Package className="h-10 w-10 text-purple-600" />
+                <Package className="h-10 w-10 text-blue-600" />
                 Historique Complet des Mouvements
               </CardTitle>
             </CardHeader>
@@ -242,14 +240,14 @@ export default function MovementsPage() {
                 <div className="py-24 text-center">
                   <Package className="h-24 w-24 mx-auto mb-6 text-slate-300 dark:text-slate-700" />
                   <p className="text-2xl font-semibold text-slate-500">Aucun mouvement trouvé</p>
-                  <p className="text-slate-400 mt-2">Modifiez vos filtres pour voir plus de résultats</p>
+                  <p className="text-slate-400 mt-2">Modifiez ваши filtres pour voir plus de résultats</p>
                 </div>
               ) : (
                 <>
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-slate-100 dark:bg-slate-700">
-                        <TableHead className="font-bold text-lg">Type</TableHead>
+                      <TableRow className="bg-blue-50 dark:bg-blue-900/30">
+                        <TableHead className="font-bold text-lg text-blue-700 dark:text-blue-300">Type</TableHead>
                         <TableHead className="font-bold text-lg">Produit</TableHead>
                         <TableHead className="font-bold text-lg">Point de vente</TableHead>
                         <TableHead className="font-bold text-lg text-center">Qté</TableHead>
@@ -263,7 +261,7 @@ export default function MovementsPage() {
                       {paginated.map((m) => {
                         const config = getMovementConfig(m.type_mouvement);
                         return (
-                          <TableRow key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all h-20">
+                          <TableRow key={m.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all h-20">
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <div className={`p-3 rounded-xl ${config.color} text-white`}>
@@ -288,14 +286,14 @@ export default function MovementsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg">
                                 {getUserName(m.utilisateur).charAt(0)}
                               </div>
                               <span className="font-medium">{getUserName(m.utilisateur)}</span>
                             </TableCell>
                             <TableCell className="text-slate-600 dark:text-slate-400">
                               <div className="flex items-center gap-2">
-                                <Calendar className="h-5 w-5" />
+                                <Calendar className="h-5 w-5 text-blue-600" />
                                 <span className="font-medium">{formatDate(m.created_at)}</span>
                               </div>
                             </TableCell>
@@ -305,9 +303,9 @@ export default function MovementsPage() {
                     </TableBody>
                   </Table>
 
-                  {/* Pagination Premium */}
-                  <div className="flex items-center justify-between px-8 py-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-t">
-                    <p className="text-lg text-slate-600 dark:text-slate-400">
+                  {/* Pagination BLEU */}
+                  <div className="flex items-center justify-between px-8 py-6 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/50 border-t">
+                    <p className="text-lg text-slate-700 dark:text-slate-300">
                       Affichage <strong>{((currentPage - 1) * itemsPerPage) + 1}</strong> à{" "}
                       <strong>{Math.min(currentPage * itemsPerPage, filteredMovements.length)}</strong> sur{" "}
                       <strong>{filteredMovements.length}</strong> mouvements
@@ -319,7 +317,7 @@ export default function MovementsPage() {
                       <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                         <ChevronLeft className="h-5 w-5" />
                       </Button>
-                      <span className="px-6 py-3 bg-white dark:bg-slate-800 rounded-xl font-bold text-lg border">
+                      <span className="px-6 py-3 bg-white dark:bg-slate-800 rounded-xl font-bold text-lg border border-blue-300 dark:border-blue-700">
                         Page {currentPage} / {totalPages || 1}
                       </span>
                       <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
