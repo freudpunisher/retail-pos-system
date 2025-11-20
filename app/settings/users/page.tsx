@@ -1,292 +1,374 @@
-"use client"
-
-import { useState } from "react"
-import { POSLayout } from "@/components/pos-layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+"use client";
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { fr , enUS } from "date-fns/locale";
+import toast from "react-hot-toast";
+import { POSLayout } from "@/components/pos-layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Edit, ToggleLeft, ToggleRight, Shield, UserCheck, Users } from "lucide-react"
-import { useUsers, userService, RoleEnum } from "@/services/userServices"
-import { CreateUserRequest, User } from "@/types/user"
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Search, Plus, Shield, Users, UserCheck, Edit, ToggleLeft, ToggleRight,
+  Loader2, RefreshCw, Key, Mail, Phone, Calendar, Crown, UserCog,
+  Package,
+  DollarSign
+} from "lucide-react";
+import { useUsers, userService, RoleEnum } from "@/services/userServices";
+import { CreateUserRequest, User } from "@/types/user";
+
+const locale = fr;
 
 export default function UsersPage() {
-  const { users, loading, error, refetch } = useUsers()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isAddUserOpen, setIsAddUserOpen] = useState(false)
+  const { users, loading, error, refetch } = useUsers();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
   const [formData, setFormData] = useState<CreateUserRequest>({
     username: "",
     email: "",
     phone: "",
     role: RoleEnum.ADMIN,
     password: "",
-  })
+  });
 
   const filteredUsers = users?.filter((user: User) =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || []
+  ) || [];
 
-  const handleCreateUser = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
+  const total = users?.length || 0;
+  const active = users?.filter(u => u.is_active).length || 0;
+  const admins = users?.filter(u => u.role === RoleEnum.ADMIN).length || 0;
+  const managers = users?.filter(u => u.role === RoleEnum.MANAGER).length || 0;
+
+  const handleCreateUser = async () => {
     try {
-      await userService.createUser(formData)
-      await refetch()
-      setIsAddUserOpen(false)
-      setFormData({ username: "", email: "", phone: "", role: RoleEnum.ADMIN, password: "" })
-    } catch (error) {
-      console.error("Failed to create user:", error)
+      await userService.createUser(formData);
+      toast.success("Utilisateur créé avec succès !");
+      setIsAddOpen(false);
+      setFormData({ username: "", email: "", phone: "", role: RoleEnum.ADMIN, password: "" });
+      refetch();
+    } catch (err) {
+      toast.error("Erreur lors de la création");
     }
-  }
+  };
 
   const handleToggleActive = async (user: User) => {
     try {
-      await userService.toggleUserActive(user.id, !user.is_active)
-      await refetch()
-    } catch (error) {
-      console.error("Failed to toggle user active status:", error)
+      await userService.toggleUserActive(user.id, !user.is_active);
+      toast.success(user.is_active ? "Utilisateur désactivé" : "Utilisateur activé");
+      refetch();
+    } catch (err) {
+      toast.error("Échec de la mise à jour");
     }
+  };
+
+  const getRoleBadge = (role: string) => {
+    const config: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+      [RoleEnum.ADMIN]: { label: "Administrateur", color: "bg-purple-600", icon: <Crown className="h-4 w-4" /> },
+      [RoleEnum.MANAGER]: { label: "Gestionnaire", color: "bg-blue-600", icon: <UserCog className="h-4 w-4" /> },
+      [RoleEnum.STOCK_MANAGER]: { label: "Stock", color: "bg-indigo-600", icon: <Package className="h-4 w-4" /> },
+      [RoleEnum.CASHIER]: { label: "Caissier", color: "bg-emerald-600", icon: <DollarSign className="h-4 w-4" /> },
+    };
+    const c = config[role] || config[RoleEnum.CASHIER];
+    return (
+      <Badge className={`${c.color} text-white font-bold flex items-center gap-2`}>
+        {c.icon} {c.label}
+      </Badge>
+    );
+  };
+
+  if (loading) {
+    return (
+      <POSLayout currentPath="/admin/users">
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+          <Loader2 className="h-16 w-16 animate-spin text-blue-600" />
+        </div>
+      </POSLayout>
+    );
   }
 
-  // Calculate stats dynamically
-  const totalUsers = users?.length || 0
-  const activeUsers = users?.filter((user: User) => user.is_active).length || 0
-  const adminUsers = users?.filter((user: User) => user.role === RoleEnum.ADMIN).length || 0
-
-  if (loading) return <POSLayout><div>Loading...</div></POSLayout>
-  if (error) return <POSLayout><div>Error: {error}</div></POSLayout>
-
   return (
-    <POSLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Users & Roles</h1>
-            <p className="text-muted-foreground">Manage user accounts and permissions</p>
-          </div>
-          <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add New User</DialogTitle>
-                <DialogDescription>Create a new user account with role and permissions.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    placeholder="Enter username"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  />
+    <POSLayout currentPath="/admin/users">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="p-8 space-y-8  mx-auto">
+
+          {/* Header ÉPIQUE */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-8">
+                <div className="p-6 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl shadow-2xl">
+                  <Users className="h-20 w-20 text-white" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter email address"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    placeholder="Enter phone number"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => setFormData({ ...formData, role: value as RoleEnum })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={RoleEnum.ADMIN}>Administrateur</SelectItem>
-                      <SelectItem value={RoleEnum.MANAGER}>Gestionnaire</SelectItem>
-                      <SelectItem value={RoleEnum.CASHIER}>Caissier</SelectItem>
-                      <SelectItem value={RoleEnum.STOCK_MANAGER}>Gestionnaire de Stock</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div>
+                  <h1 className="text-6xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                    Gestion des Utilisateurs
+                  </h1>
+                  <p className="text-2xl text-slate-600 dark:text-slate-400 mt-3 flex items-center gap-3">
+                    <Shield className="h-8 w-8 text-blue-600" />
+                    Contrôle total des comptes et permissions
+                  </p>
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
-                  Cancel
+              <div className="flex gap-4">
+                <Button size="lg" variant="outline" onClick={refetch}>
+                  <RefreshCw className="h-6 w-6 mr-3" />
+                  Actualiser
                 </Button>
-                <Button onClick={handleCreateUser}>Create User</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                {totalUsers > 0 ? `+${totalUsers} from last month` : "No users yet"}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{activeUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                {totalUsers > 0 ? `${((activeUsers / totalUsers) * 100).toFixed(0)}% of total users` : "No active users"}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Admin Users</CardTitle>
-              <Shield className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{adminUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                {totalUsers > 0 ? `${((adminUsers / totalUsers) * 100).toFixed(0)}% of total users` : "No admin users"}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>View and manage all user accounts</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-            </div>
-
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user: User) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="/placeholder.svg" alt={user.username} />
-                          <AvatarFallback>
-                            {user.username
-                              .split(" ")
-                              .map((n: string) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
+                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl">
+                      <Plus className="h-6 w-6 mr-3" />
+                      Nouvel Utilisateur
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-3xl font-bold text-blue-700">Créer un Utilisateur</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 mt-6">
+                      <div className="grid grid-cols-2 gap-6">
                         <div>
-                          <div className="font-medium">{user.username}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                          <Label className="text-lg font-semibold">Nom d'utilisateur</Label>
+                          <Input
+                            value={formData.username}
+                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                            className="h-12 text-lg mt-2"
+                            placeholder="jean.dupont"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-lg font-semibold">Email</Label>
+                          <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <Input
+                              type="email"
+                              value={formData.email}
+                              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                              className="pl-12 h-12 text-lg mt-2"
+                              placeholder="jean@entreprise.bi"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-lg font-semibold">Téléphone</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <Input
+                              value={formData.phone}
+                              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                              className="pl-12 h-12 text-lg mt-2"
+                              placeholder="+257 79 123 456"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-lg font-semibold">Mot de passe</Label>
+                          <div className="relative">
+                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <Input
+                              type="password"
+                              value={formData.password}
+                              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                              className="pl-12 h-12 text-lg mt-2"
+                              placeholder="••••••••"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {user.role === RoleEnum.ADMIN && "Administrateur"}
-                        {user.role === RoleEnum.MANAGER && "Gestionnaire"}
-                        {user.role === RoleEnum.CASHIER && "Caissier"}
-                        {user.role === RoleEnum.STOCK_MANAGER && "Gestionnaire de Stock"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.is_active ? "default" : "secondary"}>
-                        {user.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{user.last_login}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleActive(user)}
-                          title={user.is_active ? "Deactivate user" : "Activate user"}
+                      <div>
+                        <Label className="text-lg font-semibold">Rôle & Permissions</Label>
+                        <Select
+                          value={formData.role}
+                          onValueChange={(v) => setFormData({ ...formData, role: v as RoleEnum })}
                         >
-                          {user.is_active ? (
-                            <ToggleLeft className="h-4 w-4" />
-                          ) : (
-                            <ToggleRight className="h-4 w-4" />
-                          )}
+                          <SelectTrigger className="h-14 text-lg mt-2">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={RoleEnum.ADMIN}>
+                              <div className="flex items-center gap-3">
+                                <Crown className="h-5 w-5 text-purple-600" />
+                                <span className="font-bold">Administrateur</span>
+                                <Badge className="bg-purple-600 text-white">Accès total</Badge>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value={RoleEnum.MANAGER}>
+                              <div className="flex items-center gap-3">
+                                <UserCog className="h-5 w-5 text-blue-600" />
+                                <span className="font-bold">Gestionnaire</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value={RoleEnum.STOCK_MANAGER}>
+                              <div className="flex items-center gap-3">
+                                <Package className="h-5 w-5 text-indigo-600" />
+                                <span className="font-bold">Gestionnaire de Stock</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value={RoleEnum.CASHIER}>
+                              <div className="flex items-center gap-3">
+                                <DollarSign className="h-5 w-5 text-emerald-600" />
+                                <span className="font-bold">Caissier</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-end gap-4 pt-6 border-t">
+                        <Button type="button" variant="outline" size="lg" onClick={() => setIsAddOpen(false)}>
+                          Annuler
+                        </Button>
+                        <Button size="lg" onClick={handleCreateUser} className="bg-gradient-to-r from-blue-600 to-blue-700 px-10">
+                          <UserCheck className="h-6 w-6 mr-3" />
+                          Créer l'Utilisateur
                         </Button>
                       </div>
-                    </TableCell>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Premium */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-2xl border-0">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-lg">Total</p>
+                    <p className="text-5xl font-extrabold mt-2">{total}</p>
+                  </div>
+                  <Users className="h-20 w-20 opacity-30" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-2xl border-0">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-emerald-100">Actifs</p>
+                    <p className="text-4xl font-bold mt-2">{active}</p>
+                  </div>
+                  <UserCheck className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-purple-600 to-violet-700 text-white shadow-2xl border-0">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100">Admins</p>
+                    <p className="text-4xl font-bold mt-2">{admins}</p>
+                  </div>
+                  <Crown className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-indigo-600 to-blue-700 text-white shadow-2xl border-0">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-indigo-100">Gestionnaires</p>
+                    <p className="text-4xl font-bold mt-2">{managers}</p>
+                  </div>
+                  <UserCog className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tableau Utilisateurs */}
+          <Card className="shadow-2xl border-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-3xl font-bold flex items-center gap-4">
+                  <Shield className="h-10 w-10 text-blue-600" />
+                  Liste des Utilisateurs
+                </CardTitle>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                  <Input
+                    placeholder="Rechercher un utilisateur..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-12 h-12 w-96"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-blue-50 dark:bg-blue-900/30">
+                    <TableHead className="font-bold text-lg text-blue-700">Utilisateur</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700">Rôle</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700 text-center">Statut</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700">Dernière connexion</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700 text-center">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 h-20">
+                      <TableCell>
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-14 w-14 ring-4 ring-blue-100">
+                            <AvatarFallback className="text-xl font-bold bg-gradient-to-br from-blue-500 to-blue-700 text-white">
+                              {user.username.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-bold text-lg">{user.username}</p>
+                            <p className="text-sm text-slate-600 flex items-center gap-2">
+                              <Mail className="h-4 w-4" /> {user.email}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getRoleBadge(user.role)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`text-white text-lg px-6 py-2 ${user.is_active ? "bg-emerald-500" : "bg-red-500"}`}>
+                          {user.is_active ? "ACTIF" : "INACTIF"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-slate-600">
+                          <Calendar className="h-5 w-5" />
+                          {user.last_login ? format(new Date(user.last_login), "dd MMM yyyy à HH:mm", { locale }) : "Jamais"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          <Button size="sm" variant="ghost">
+                            <Edit className="h-5 w-5 text-blue-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleToggleActive(user)}>
+                            {user.is_active ? (
+                              <ToggleLeft className="h-6 w-6 text-red-600" />
+                            ) : (
+                              <ToggleRight className="h-6 w-6 text-emerald-600" />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </POSLayout>
-  )
+  );
 }
