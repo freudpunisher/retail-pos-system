@@ -1,812 +1,474 @@
-"use client"
+"use client";
+import { useState, useEffect } from "react";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import toast from "react-hot-toast";
+import { POSLayout } from "@/components/pos-layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Search, Plus, Eye, Package, Store, Truck, CheckCircle2, AlertTriangle,
+  Loader2, RefreshCw, ArrowRightLeft, User, Calendar
+} from "lucide-react";
+import { useProducts } from "@/hooks/useProducts";
+import { usePointsVente } from "@/hooks/usePointsVente";
+import { useUsers } from "@/hooks/useUsers";
+import { useTransferts } from "@/hooks/useTransfertsStock";
+import { TransfertStock, PointVente, Utilisateur, Produit } from "@/types/transfertsStock";
 
-import { useState, useEffect } from "react"
-import { useForm, Controller, useFieldArray } from "react-hook-form"
-import { format } from "date-fns"
-import { fr } from "date-fns/locale"
-import toast from "react-hot-toast"
-import { POSLayout } from "@/components/pos-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  Search,
-  Plus,
-  Edit,
-  Eye,
-  Package,
-  Store,
-  AlertTriangle,
-  Loader2,
-  Truck,
-  CheckCircle,
-} from "lucide-react"
-import { useProducts } from "@/hooks/useProducts"
-import { usePointsVente } from "@/hooks/usePointsVente"
-import { useUsers } from "@/hooks/useUsers"
-import { useTransferts } from "@/hooks/useTransfertsStock"
-import {
-  TransfertStock,
-  CreateTransfertStock,
-  TransfertStockLigne,
-  PointVente,
-  Utilisateur,
-  Produit,
-} from "@/types/transfertsStock"
-
-// Mock current user (replace with real auth context)
 const getCurrentUser = (): Utilisateur | null => {
   try {
-    const raw = localStorage.getItem("user")
-    if (!raw) return null
-    return JSON.parse(raw) as Utilisateur
-  } catch {
-    return null
-  }
-}
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
 
-interface TransfertFormData {
-  numero_transfert: string
-  point_vente_source: string
-  point_vente_destination: string
-  status: 'pending' | 'validated' | 'shipped' | 'received' | 'cancelled'
-  demandeur: string
-  commentaire?: string
-  lignes: {
-    produit: string
-    quantite_demandee: number
-    quantite_expediee: number
-    quantite_recue: number
-  }[]
+interface FormData {
+  numero_transfert: string;
+  point_vente_source: string;
+  point_vente_destination: string;
+  demandeur: string;
+  commentaire?: string;
+  lignes: { produit: string; quantite_demandee: number; quantite_expediee: number; quantite_recue: number }[];
 }
 
 export default function StockTransfersPage() {
-  const { products, productsLoading, fetchProducts } = useProducts()
-const { pointsVente, pointsVenteLoading, fetchPointsVente } = usePointsVente()
-const { users, userLoading, fetchUsers } = useUsers()
-const { transferts, transfertsloading, loadTransferts, addTransfert, editTransfert } = useTransferts()
-const currentUser = getCurrentUser()
-  const globalLoading = productsLoading || pointsVenteLoading || userLoading || transfertsloading
+  const { products, productsLoading } = useProducts();
+  const { pointsVente, pointsVenteLoading } = usePointsVente();
+  const { users } = useUsers();
+  const { transferts, transfertsloading, loadTransferts, addTransfert, editTransfert } = useTransferts();
+  const currentUser = getCurrentUser();
 
-  useEffect(() => {
-  fetchProducts()
-  fetchPointsVente()
-  fetchUsers()
-  loadTransferts()
-}, [fetchProducts, fetchPointsVente, fetchUsers, loadTransferts])
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedTransfert, setSelectedTransfert] = useState<TransfertStock | null>(null);
 
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [selectedTransfertId, setSelectedTransfertId] = useState<string | null>(null)
-  const [editingTransfertId, setEditingTransfertId] = useState<string | null>(null)
-
-  const { register, control, handleSubmit, reset, formState: { errors }, setValue } = useForm<TransfertFormData>({
+  const { control, handleSubmit, reset, register, formState: { errors } } = useForm<FormData>({
     defaultValues: {
-      numero_transfert: "",
+      numero_transfert: `TR-${format(new Date(), "yyyyMMdd-HHmm")}`,
       point_vente_source: "",
       point_vente_destination: "",
-      status: "pending",
-      demandeur: currentUser?.id ?? "",
+      demandeur: currentUser?.id || "",
       commentaire: "",
-      lignes: [],
-    },
-  })
-
-  const { fields, append, remove } = useFieldArray({ control, name: "lignes" })
-
-  const filteredTransferts = transferts.filter((t) => {
-    const matchesSearch = t.numero_transfert.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = selectedStatus === "all" || t.status === selectedStatus
-    return matchesSearch && matchesStatus
-  })
-
-  const getStatusBadge = (status: string) => {
-    const badges: Record<string, JSX.Element> = {
-      pending: <Badge className="bg-gray-500 text-white">En Attente</Badge>,
-      validated: <Badge className="bg-blue-500 text-white">Validé</Badge>,
-      shipped: <Badge className="bg-yellow-500 text-white">Expédié</Badge>,
-      received: <Badge className="bg-green-500 text-white">Reçu</Badge>,
-      cancelled: <Badge className="bg-red-500 text-white">Annulé</Badge>,
+      lignes: []
     }
-    return badges[status] || <Badge variant="outline">{status}</Badge>
-  }
+  });
 
-  const getStatusIcon = (status: string) => {
-    const icons: Record<string, JSX.Element> = {
-      pending: <Package className="h-4 w-4 text-gray-600" />,
-      validated: <CheckCircle className="h-4 w-4 text-blue-600" />,
-      shipped: <Truck className="h-4 w-4 text-yellow-600" />,
-      received: <CheckCircle className="h-4 w-4 text-green-600" />,
-      cancelled: <AlertTriangle className="h-4 w-4 text-red-600" />,
-    }
-    return icons[status] || <Package className="h-4 w-4 text-gray-600" />
-  }
+  const { fields, append, remove } = useFieldArray({ control, name: "lignes" });
 
-  const formatDate = (date?: string) => {
-    if (!date) return "Non défini"
-    return format(new Date(date), "dd MMM yyyy", { locale: fr })
-  }
+  useEffect(() => { loadTransferts(); }, [loadTransferts]);
 
-  // Action: Valider
-  const handleValidate = async (id: string) => {
+  const filtered = transferts.filter(t =>
+    t.numero_transfert.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (selectedStatus === "all" || t.status === selectedStatus)
+  );
+
+  const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+    pending: { label: "En attente", color: "bg-gray-500", icon: <Package className="h-5 w-5" /> },
+    validated: { label: "Validé", color: "bg-blue-500", icon: <CheckCircle2 className="h-5 w-5" /> },
+    shipped: { label: "Expédié", color: "bg-yellow-500", icon: <Truck className="h-5 w-5" /> },
+    received: { label: "Reçu", color: "bg-green-500", icon: <CheckCircle2 className="h-5 w-5" /> },
+    cancelled: { label: "Annulé", color: "bg-red-500", icon: <AlertTriangle className="h-5 w-5" /> },
+  };
+
+  const getBadge = (status: string) => {
+    const cfg = statusConfig[status] || statusConfig.pending;
+    return <Badge className={`${cfg.color} text-white font-semibold`}>{cfg.label}</Badge>;
+  };
+
+  const handleAction = async (id: string, status: "validated" | "shipped" | "received") => {
     try {
-      await editTransfert(id, {
-        status: "completed",
-        date_validation: new Date().toISOString().split("T")[0],
-        validateur: currentUser?.id,
-      })
-      toast.success("Transfert validé")
-      loadTransferts()
-    } catch (err: any) {
-      toast.error("Échec validation")
-    }
-  }
+      await editTransfert(id, { status });
+      toast.success(`Transfert ${status === "validated" ? "validé" : status === "shipped" ? "expédié" : "reçu"} !`);
+      loadTransferts();
+    } catch { toast.error("Échec de l'opération"); }
+  };
 
-  // Action: Expédier
-  const handleShip = async (id: string) => {
+  const onSubmit = async (data: FormData) => {
     try {
-      await editTransfert(id, {
-        status: "shipped",
-        date_expedition: new Date().toISOString().split("T")[0],
-      })
-      toast.success("Transfert expédié")
-      loadTransferts()
-    } catch (err: any) {
-      toast.error("Échec expédition")
-    }
-  }
+      await addTransfert({ ...data, status: "pending" } as any);
+      toast.success("Transfert créé avec succès");
+      setIsAddOpen(false);
+      reset();
+      loadTransferts();
+    } catch { toast.error("Erreur lors de la création"); }
+  };
 
-  // Action: Recevoir
-  const handleReceive = async (id: string) => {
-    try {
-      await editTransfert(id, {
-        status: "received",
-        date_reception: new Date().toISOString().split("T")[0],
-      })
-      toast.success("Transfert reçu")
-      loadTransferts()
-    } catch (err: any) {
-      toast.error("Échec réception")
-    }
-  }
-
-  const handleCreateOrUpdate = async (data: TransfertFormData) => {
-    try {
-      const payload: CreateTransfertStock = {
-        ...data,
-        status: data.status,
-        demandeur: data.demandeur,
-        lignes: data.lignes,
-      }
-
-      if (editingTransfertId) {
-        await editTransfert(editingTransfertId, payload)
-        toast.success("Transfert mis à jour")
-        setIsEditModalOpen(false)
-      } else {
-        await addTransfert(payload)
-        toast.success("Transfert créé")
-        setIsAddModalOpen(false)
-      }
-      reset()
-      setEditingTransfertId(null)
-      loadTransferts()
-    } catch (err) {
-      toast.error("Erreur lors de la sauvegarde")
-    }
-  }
-
-  const openEditModal = (t: TransfertStock) => {
-  setEditingTransfertId(t.id ?? "")
-  reset({
-    numero_transfert: t.numero_transfert,
-    point_vente_source: t.point_vente_source,
-    point_vente_destination: t.point_vente_destination,
-    status: t.status,
-    demandeur: t.demandeur ?? currentUser?.id ?? "",   // <-- keep existing, else current
-    commentaire: t.commentaire ?? "",
-    lignes: (t.lignes ?? []).map(l => ({
-      produit: l.produit,
-      quantite_demandee: l.quantite_demandee,
-      quantite_expediee: l.quantite_expediee,
-      quantite_recue: l.quantite_recue,
-    })),
-  })
-  setIsEditModalOpen(true)
-}
-
-  if (globalLoading && transferts.length === 0) {
+  if (transfertsloading) {
     return (
       <POSLayout currentPath="/stock/transfers">
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-          <span className="text-lg">Chargement...</span>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-16 w-16 animate-spin text-blue-600" />
         </div>
       </POSLayout>
-    )
+    );
   }
 
   return (
     <POSLayout currentPath="/stock/transfers">
-      <TooltipProvider>
-        <div className="p-6 space-y-8">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-extrabold text-foreground">Transferts de Stock</h1>
-              <p className="text-lg text-muted-foreground">Gérez les transferts entre points de vente</p>
-            </div>
-            <div className="flex space-x-3">
-              <Button variant="outline" onClick={loadTransferts} disabled={transfertsloading}>
-                {transfertsloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Store className="h-4 w-4 mr-2" />}
-                Rafraîchir
-              </Button>
-              <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouveau Transfert
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw' }}>
-                  <DialogHeader>
-                    <DialogTitle>Créer un Transfert</DialogTitle>
-                  </DialogHeader>
-                  
-  <FormContent
-    onSubmit={handleSubmit(handleCreateOrUpdate)}
-    register={register}
-    control={control}
-    errors={errors}
-    fields={fields}
-    append={append}
-    remove={remove}
-    pointsVente={pointsVente}
-    pointsVenteLoading={pointsVenteLoading}
-    users={users}
-    userLoading={userLoading}
-    products={products}
-    productsLoading={productsLoading}
-    isEdit={false}
-  />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="p-8 space-y-8 max-w-screen-2xl mx-auto">
 
-                </DialogContent>
-              </Dialog>
+          {/* Header Premium */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-8">
+                <div className="p-6 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl shadow-2xl">
+                  <ArrowRightLeft className="h-20 w-20 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-6xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                    Transferts de Stock
+                  </h1>
+                  <p className="text-2xl text-slate-600 dark:text-slate-400 mt-3 flex items-center gap-3">
+                    <Store className="h-8 w-8 text-blue-600" />
+                    Gestion des mouvements entre points de vente
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <Button size="lg" variant="outline" onClick={loadTransferts} disabled={transfertsloading}>
+                  <RefreshCw className={`h-6 w-6 mr-3 ${transfertsloading ? "animate-spin" : ""}`} />
+                  Actualiser
+                </Button>
+                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl">
+                      <Plus className="h-6 w-6 mr-3" />
+                      Nouveau Transfert
+                    </Button>
+                  </DialogTrigger>
+            
+                  <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto" style={{ width: "80vh", maxWidth: "80vh" }}>
+                    <DialogHeader>
+                      <DialogTitle className="text-3xl font-bold text-blue-700">Créer un Transfert de Stock</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 mt-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <Label className="text-lg font-semibold">Numéro de transfert</Label>
+                          <Input {...register("numero_transfert")} className="h-12 text-lg mt-2" readOnly />
+                        </div>
+                        <div>
+                          <Label className="text-lg font-semibold">Demandeur</Label>
+                          <div className="h-12 mt-2 px-4 flex items-center bg-blue-50 dark:bg-blue-900/30 rounded-lg text-lg font-medium text-blue-700 dark:text-blue-300">
+                            <User className="h-5 w-5 mr-3" />
+                            {currentUser?.prenom} {currentUser?.nom}
+                          </div>
+                          <input type="hidden" {...register("demandeur")} />
+                        </div>
+                        <div>
+                          <Label className="text-lg font-semibold">Point de vente source <span className="text-red-500">*</span></Label>
+                          <Controller
+                            name="point_vente_source"
+                            control={control}
+                            rules={{ required: "Champ requis" }}
+                            render={({ field }) => (
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className="h-12 text-lg mt-2">
+                                  <SelectValue placeholder="Choisir la source..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {pointsVente.map(pv => (
+                                    <SelectItem key={pv.id} value={pv.id}>{pv.nom}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.point_vente_source && <p className="text-red-500 text-sm mt-1">{errors.point_vente_source.message}</p>}
+                        </div>
+                        <div>
+                          <Label className="text-lg font-semibold">Point de vente destination <span className="text-red-500">*</span></Label>
+                          <Controller
+                            name="point_vente_destination"
+                            control={control}
+                            rules={{ required: "Champ requis" }}
+                            render={({ field }) => (
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className="h-12 text-lg mt-2">
+                                  <SelectValue placeholder="Choisir la destination..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {pointsVente.map(pv => (
+                                    <SelectItem key={pv.id} value={pv.id}>{pv.nom}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.point_vente_destination && <p className="text-red-500 text-sm mt-1">{errors.point_vente_destination.message}</p>}
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label className="text-lg font-semibold">Commentaire (facultatif)</Label>
+                        <Input {...register("commentaire")} placeholder="Notes sur le transfert..." className="h-12 text-lg mt-2" />
+                      </div>
+
+                      <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 bg-blue-50/50 dark:bg-blue-900/20">
+                        <div className="flex items-center justify-between mb-4">
+                          <Label className="text-2xl font-bold text-blue-700">Articles à transférer</Label>
+                          <Badge variant="secondary" className="text-xl px-4 py-2">{fields.length} article{fields.length > 1 ? "s" : ""}</Badge>
+                        </div>
+
+                        {fields.length === 0 ? (
+                          <div className="text-center py-12 text-slate-500">
+                            <Package className="h-20 w-20 mx-auto mb-4 opacity-30" />
+                            <p className="text-xl">Aucun article ajouté</p>
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-blue-100 dark:bg-blue-900/40">
+                                <TableHead className="font-bold text-blue-700">Produit</TableHead>
+                                <TableHead className="text-center font-bold text-blue-700">Qté demandée</TableHead>
+                                <TableHead className="text-center font-bold text-blue-700">Qté expédiée</TableHead>
+                                <TableHead className="text-center font-bold text-blue-700">Qté reçue</TableHead>
+                                <TableHead className="text-center"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {fields.map((field, i) => (
+                                <TableRow key={field.id} className="hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                                  <TableCell>
+                                    <Controller
+                                      name={`lignes.${i}.produit`}
+                                      control={control}
+                                      rules={{ required: "Produit requis" }}
+                                      render={({ field: f }) => (
+                                        <Select onValueChange={f.onChange} value={f.value}>
+                                          <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                                          <SelectContent>
+                                            {products.map(p => (
+                                              <SelectItem key={p.id} value={p.id}>{p.nom}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Input type="number" defaultValue={1} className="w-24" {...register(`lignes.${i}.quantite_demandee`, { valueAsNumber: true, min: 1 })} />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Input type="number" defaultValue={0} className="w-24" {...register(`lignes.${i}.quantite_expediee`, { valueAsNumber: true })} />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Input type="number" defaultValue={0} className="w-24" {...register(`lignes.${i}.quantite_recue`, { valueAsNumber: true })} />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button variant="ghost" size="icon" onClick={() => remove(i)} className="text-red-600 hover:bg-red-50">
+                                      <AlertTriangle className="h-5 w-5" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+
+                        <Button
+                          type="button"
+                          onClick={() => append({ produit: "", quantite_demandee: 1, quantite_expediee: 0, quantite_recue: 0 })}
+                          variant="outline"
+                          className="w-full mt-6 border-2 border-dashed border-blue-500 hover:bg-blue-50"
+                        >
+                          <Plus className="h-6 w-6 mr-3" />
+                          Ajouter un article
+                        </Button>
+                      </div>
+
+                      <div className="flex justify-end gap-4 pt-6 border-t">
+                        <Button type="button" variant="outline" size="lg" onClick={() => setIsAddOpen(false)}>Annuler</Button>
+                        <Button type="submit" size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-10 text-lg font-bold">
+                          Créer le Transfert
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
 
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher par numéro..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["all", "pending", "validated", "shipped", "received", "cancelled"].map(s => (
-                      <SelectItem key={s} value={s}>
-                        {s === "all" ? "Tous" : getStatusBadge(s).props.children}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {["pending", "validated", "shipped", "received", "cancelled"].map(status => (
-              <Card key={status}>
-                <CardContent className="p-6 text-center">
-                  <div className="text-3xl font-bold">
-                    {transferts.filter(t => t.status === status).length}
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+            {Object.entries(statusConfig).map(([key, cfg]) => (
+              <Card key={key} className={`border-l-8 border-l-${key === "pending" ? "gray" : key === "validated" ? "blue" : key === "shipped" ? "yellow" : key === "received" ? "green" : "red"}-500 bg-white dark:bg-slate-800 shadow-xl`}>
+                <CardContent className="pt-8">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-4xl font-extrabold">{transferts.filter(t => t.status === key).length}</p>
+                      <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">{cfg.label}</p>
+                    </div>
+                    <div className={`p-4 rounded-2xl ${cfg.color} text-white`}>
+                      {cfg.icon}
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {getStatusBadge(status).props.children}
-                  </p>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Liste des Transferts</CardTitle>
+          {/* Filtres + Tableau */}
+          <Card className="shadow-2xl border-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-3xl font-bold flex items-center gap-4">
+                  <ArrowRightLeft className="h-10 w-10 text-blue-600" />
+                  Liste des Transferts
+                </CardTitle>
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <Input placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-12 h-12 w-80" />
+                  </div>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-56 h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les statuts</SelectItem>
+                      {Object.entries(statusConfig).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Numéro</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Articles</TableHead>
-                    <TableHead>Demandeur</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="bg-blue-50 dark:bg-blue-900/30">
+                    <TableHead className="font-bold text-lg">Numéro</TableHead>
+                    <TableHead className="font-bold text-lg">Source → Destination</TableHead>
+                    <TableHead className="font-bold text-lg text-center">Statut</TableHead>
+                    <TableHead className="font-bold text-lg text-center">Articles</TableHead>
+                    <TableHead className="font-bold text-lg">Demandeur</TableHead>
+                    <TableHead className="font-bold text-lg">Date</TableHead>
+                    <TableHead className="font-bold text-lg text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTransferts.map(t => {
-                    const source = pointsVente.find(pv => pv.id === t.point_vente_source)
-                    const dest = pointsVente.find(pv => pv.id === t.point_vente_destination)
-                    const demandeur = users.find(u => u.id === t.demandeur)
+                  {filtered.map(t => {
+                    const source = pointsVente.find(p => p.id === t.point_vente_source)?.nom || "?";
+                    const dest = pointsVente.find(p => p.id === t.point_vente_destination)?.nom || "?";
+                    const user = users.find(u => u.id === t.demandeur);
                     return (
-                      <TableRow key={t.id}>
-                        <TableCell className="font-medium">{t.numero_transfert}</TableCell>
-                        <TableCell>{source?.nom || "—"}</TableCell>
-                        <TableCell>{dest?.nom || "—"}</TableCell>
+                      <TableRow key={t.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 h-20">
+                        <TableCell className="font-bold text-lg">{t.numero_transfert}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(t.status)}
-                            {getStatusBadge(t.status)}
+                          <div className="flex items-center gap-3 font-medium">
+                            <span className="text-blue-600">{source}</span>
+                            <ArrowRightLeft className="h-5 w-5 text-blue-500" />
+                            <span className="text-blue-600">{dest}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{t.lignes?.length || 0}</TableCell>
-                        <TableCell>{demandeur?.nom || "—"}</TableCell>
-                        <TableCell>{formatDate(t.date_demande)}</TableCell>
+                        <TableCell className="text-center">
+                          <div className={`inline-flex items-center gap-3 px-5 py-3 rounded-xl ${statusConfig[t.status]?.color} text-white font-bold`}>
+                            {statusConfig[t.status]?.icon}
+                            {statusConfig[t.status]?.label}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center font-bold text-xl">{t.lignes?.length || 0}</TableCell>
+                        <TableCell className="font-medium">{user ? `${user.prenom} ${user.nom}` : "—"}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" onClick={() => { setSelectedTransfertId(t.id || ""); setIsDetailModalOpen(true) }}>
-                                  <Eye className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Détails</TooltipContent>
-                            </Tooltip>
-
+                          <div className="flex items-center gap-2 text-slate-600">
+                            <Calendar className="h-5 w-5" />
+                            {format(new Date(t.date_demande || new Date()), "dd MMM yyyy", { locale: fr })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-3">
+                            <Button size="sm" variant="ghost" onClick={() => { setSelectedTransfert(t); setIsDetailOpen(true); }}>
+                              <Eye className="h-5 w-5" />
+                            </Button>
                             {t.status === "pending" && (
-                              <>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button size="sm" variant="ghost" onClick={() => openEditModal(t)}>
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Modifier</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button size="sm" className="bg-blue-500 text-white hover:bg-blue-600" onClick={() => handleValidate(t.id!)}>
-                                      Valider
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Valider le transfert</TooltipContent>
-                                </Tooltip>
-                              </>
+                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleAction(t.id!, "validated")}>
+                                Valider
+                              </Button>
                             )}
-
                             {t.status === "validated" && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button size="sm" className="bg-yellow-500 text-white hover:bg-yellow-600" onClick={() => handleShip(t.id!)}>
-                                    Expédier
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Marquer comme expédié</TooltipContent>
-                              </Tooltip>
+                              <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700 text-white" onClick={() => handleAction(t.id!, "shipped")}>
+                                Expédier
+                              </Button>
                             )}
-
                             {t.status === "shipped" && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button size="sm" className="bg-green-500 text-white hover:bg-green-600" onClick={() => handleReceive(t.id!)}>
-                                    Recevoir
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Marquer comme reçu</TooltipContent>
-                              </Tooltip>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleAction(t.id!, "received")}>
+                                Reçu
+                              </Button>
                             )}
                           </div>
                         </TableCell>
                       </TableRow>
-                    )
+                    );
                   })}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
 
-          {/* Edit Modal */}
-          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw' }}>
-              <DialogHeader>
-                <DialogTitle>Modifier Transfert</DialogTitle>
-              </DialogHeader>
-              <FormContent
-                onSubmit={handleSubmit(handleCreateOrUpdate)}
-                register={register}
-                control={control}
-                errors={errors}
-                fields={fields}
-                append={append}
-                remove={remove}
-                pointsVente={pointsVente}
-                users={users}
-                products={products}
-                isEdit={true}
-                onCancel={() => { setIsEditModalOpen(false); reset(); }}
-              />
-            </DialogContent>
-          </Dialog>
-
           {/* Detail Modal */}
-          <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-            <DialogContent className="max-h-[95vh] overflow-y-auto p-8" style={{ width: '70vw', maxWidth: '70vw' }}>
-              <DialogHeader>
-                <DialogTitle>Détails du Transfert</DialogTitle>
-              </DialogHeader>
-              {selectedTransfertId && (() => {
-                const t = transferts.find(x => x.id === selectedTransfertId)
-                if (!t) return <p>Non trouvé</p>
-                const source = pointsVente.find(pv => pv.id === t.point_vente_source)
-                const dest = pointsVente.find(pv => pv.id === t.point_vente_destination)
-                const demandeur = users.find(u => u.id === t.demandeur)
-                const validateur = users.find(u => u.id === t.validateur)
-                return (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div><strong>Numéro:</strong> {t.numero_transfert}</div>
-                      <div><strong>Statut:</strong> {getStatusBadge(t.status)}</div>
-                      <div><strong>Source:</strong> {source?.nom}</div>
-                      <div><strong>Destination:</strong> {dest?.nom}</div>
-                      <div><strong>Demandeur:</strong> {demandeur?.nom}</div>
-                      <div><strong>Validateur:</strong> {validateur?.nom || "—"}</div>
-                      <div><strong>Date demande:</strong> {formatDate(t.date_demande)}</div>
-                      <div><strong>Date validation:</strong> {formatDate(t.date_validation)}</div>
-                      <div><strong>Date expédition:</strong> {formatDate(t.date_expedition)}</div>
-                      <div><strong>Date réception:</strong> {formatDate(t.date_reception)}</div>
-                    </div>
-                    {t.commentaire && (
-                      <div>
-                        <strong>Commentaire:</strong>
-                        <p className="mt-1 p-2 bg-muted rounded">{t.commentaire}</p>
-                      </div>
-                    )}
-                    <div>
-                      <strong>Articles:</strong>
-                      <Table className="mt-2">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Produit</TableHead>
-                            <TableHead className="text-center">Demandée</TableHead>
-                            <TableHead className="text-center">Expédiée</TableHead>
-                            <TableHead className="text-center">Reçue</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(t.lignes || []).map(l => {
-                            const prod = products.find(p => p.id === l.produit)
-                            return (
-                              <TableRow key={l.produit}>
-                                <TableCell>{prod?.nom || "—"}</TableCell>
-                                <TableCell className="text-center">{l.quantite_demandee}</TableCell>
-                                <TableCell className="text-center">{l.quantite_expediee}</TableCell>
-                                <TableCell className="text-center">{l.quantite_recue}</TableCell>
-                              </TableRow>
-                            )
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
+          <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto" style={{width:"80vh", maxWidth:"80vh"}}>
+              {selectedTransfert && (
+                <div className="space-y-8">
+                  <DialogHeader>
+                    <DialogTitle className="text-3xl font-bold text-blue-700">Détail du Transfert #{selectedTransfert.numero_transfert}</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-6 text-lg">
+                    <div><strong>Source :</strong> {pointsVente.find(p => p.id === selectedTransfert.point_vente_source)?.nom}</div>
+                    <div><strong>Destination :</strong> {pointsVente.find(p => p.id === selectedTransfert.point_vente_destination)?.nom}</div>
+                    <div><strong>Statut :</strong> {getBadge(selectedTransfert.status)}</div>
+                    <div><strong>Demandeur :</strong> {users.find(u => u.id === selectedTransfert.demandeur)?.prenom} {users.find(u => u.id === selectedTransfert.demandeur)?.nom}</div>
+                    <div><strong>Date demande :</strong> {format(new Date(selectedTransfert.date_demande || new Date()), "dd MMMM yyyy à HH:mm", { locale: fr })}</div>
+                    <div><strong>Commentaire :</strong> {selectedTransfert.commentaire || "Aucun"}</div>
                   </div>
-                )
-              })()}
+                  <div>
+                    <h3 className="text-2xl font-bold text-blue-700 mb-4">Articles ({selectedTransfert.lignes?.length})</h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-blue-100 dark:bg-blue-900/30">
+                          <TableHead className="font-bold">Produit</TableHead>
+                          <TableHead className="text-center font-bold">Demandée</TableHead>
+                          <TableHead className="text-center font-bold">Expédiée</TableHead>
+                          <TableHead className="text-center font-bold">Reçue</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedTransfert.lignes?.map(l => {
+                          const prod = products.find(p => p.id === l.produit);
+                          return (
+                            <TableRow key={l.produit}>
+                              <TableCell className="font-medium">{prod?.nom || "Inconnu"}</TableCell>
+                              <TableCell className="text-center font-bold text-lg">{l.quantite_demandee}</TableCell>
+                              <TableCell className="text-center text-yellow-600 font-bold">{l.quantite_expediee}</TableCell>
+                              <TableCell className="text-center text-green-600 font-bold">{l.quantite_recue}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </div>
-      </TooltipProvider>
+      </div>
     </POSLayout>
-  )
-}
-
-// Reusable Form Component
-function FormContent({
-  onSubmit,
-  register,
-  control,
-  errors,
-  fields,
-  append,
-  remove,
-  pointsVente,
-  pointsVenteLoading,
-  users,
-  userLoading,
-  products,
-  productsLoading,
-  isEdit,
-  onCancel,
-}: any) {
-  const currentUser = getCurrentUser()
-  return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      {/* ── Header fields ── */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Numéro */}
-        <div>
-          <Label>Numéro de transfert</Label>
-          <Input {...register("numero_transfert", { required: "Requis" })} />
-          {errors.numero_transfert && (
-            <p className="text-xs text-destructive">{errors.numero_transfert.message}</p>
-          )}
-        </div>
-
-        {/* Demandeur */}
-        <div>
-  <Label>Demandeur</Label>
-  <div className="flex items-center h-10 px-3 border rounded-md bg-muted text-sm">
-    {currentUser?.username  ?? "Utilisateur inconnu"}
-  </div>
-  {/* Hidden input to include the ID in form submission */}
-  <input
-    type="hidden"
-    {...register("demandeur", { required: "Requis" })}
-  />
-</div>
-
-        {/* Point de vente source */}
-        <div>
-          <Label>Point de vente source</Label>
-          <Controller
-            name="point_vente_source"
-            control={control}
-            rules={{ required: "Requis" }}
-            render={({ field }) => (
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={pointsVenteLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={pointsVenteLoading ? "Chargement…" : "Source"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {pointsVenteLoading ? (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      Chargement…
-                    </div>
-                  ) : pointsVente.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      Aucun point de vente
-                    </div>
-                  ) : (
-                    pointsVente.map((pv: PointVente) => (
-                      <SelectItem key={pv.id} value={pv.id}>
-                        {pv.nom}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.point_vente_source && (
-            <p className="text-xs text-destructive">{errors.point_vente_source.message}</p>
-          )}
-        </div>
-
-        {/* Point de vente destination */}
-        <div>
-          <Label>Point de vente destination</Label>
-          <Controller
-            name="point_vente_destination"
-            control={control}
-            rules={{ required: "Requis" }}
-            render={({ field }) => (
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={pointsVenteLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={pointsVenteLoading ? "Chargement…" : "Destination"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {pointsVenteLoading ? (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      Chargement…
-                    </div>
-                  ) : pointsVente.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      Aucun point de vente
-                    </div>
-                  ) : (
-                    pointsVente.map((pv: PointVente) => (
-                      <SelectItem key={pv.id} value={pv.id}>
-                        {pv.nom}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.point_vente_destination && (
-            <p className="text-xs text-destructive">{errors.point_vente_destination.message}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Commentaire */}
-      <div>
-        <Label>Commentaire (optionnel)</Label>
-        <Input {...register("commentaire")} placeholder="Notes…" />
-      </div>
-
-      {/* ── Lignes ── */}
-      <div>
-        <Label>Articles</Label>
-        <div className="border rounded-lg p-4 mt-2">
-          {fields.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">Aucun article</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produit</TableHead>
-                  <TableHead className="text-center">Qté demandée</TableHead>
-                  <TableHead className="text-center">Qté expédiée</TableHead>
-                  <TableHead className="text-center">Qté reçue</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fields.map((field, i) => (
-                  <TableRow key={field.id}>
-                    {/* Produit */}
-                    <TableCell>
-                      <Controller
-                        name={`lignes.${i}.produit`}
-                        control={control}
-                        rules={{ required: "Requis" }}
-                        render={({ field: prodField }) => (
-                          <Select
-                            onValueChange={prodField.onChange}
-                            value={prodField.value}
-                            disabled={productsLoading}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder={productsLoading ? "Chargement…" : "Produit"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {productsLoading ? (
-                                <div className="p-2 text-sm text-muted-foreground">
-                                  Chargement…
-                                </div>
-                              ) : products.length === 0 ? (
-                                <div className="p-2 text-sm text-muted-foreground">
-                                  Aucun produit
-                                </div>
-                              ) : (
-                                products.map((p: Produit) => (
-                                  <SelectItem key={p.id} value={p.id}>
-                                    {p.nom}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.lignes?.[i]?.produit && (
-                        <p className="text-xs text-destructive mt-1">
-                          {errors.lignes[i].produit.message}
-                        </p>
-                      )}
-                    </TableCell>
-
-                    {/* Quantités */}
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-9 text-center"
-                        {...register(`lignes.${i}.quantite_demandee`, {
-                          required: "Requis",
-                          min: { value: 1, message: "≥1" },
-                          valueAsNumber: true,
-                        })}
-                      />
-                      {errors.lignes?.[i]?.quantite_demandee && (
-                        <p className="text-xs text-destructive mt-1">
-                          {errors.lignes[i].quantite_demandee.message}
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-9 text-center"
-                        {...register(`lignes.${i}.quantite_expediee`, {
-                          min: { value: 0, message: "≥0" },
-                          valueAsNumber: true,
-                        })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-9 text-center"
-                        {...register(`lignes.${i}.quantite_recue`, {
-                          min: { value: 0, message: "≥0" },
-                          valueAsNumber: true,
-                        })}
-                      />
-                    </TableCell>
-
-                    {/* Delete */}
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(i)}
-                        className="text-destructive"
-                      >
-                        Supprimer
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() =>
-              append({
-                produit: "",
-                quantite_demandee: 1,
-                quantite_expediee: 0,
-                quantite_recue: 0,
-              })
-            }
-          >
-            <Plus className="h-3 w-3 mr-1" /> Ajouter
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Footer ── */}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Annuler
-        </Button>
-        <Button type="submit">{isEdit ? "Mettre à jour" : "Créer"} Transfert</Button>
-      </div>
-    </form>
-  )
+  );
 }
