@@ -141,7 +141,7 @@ export default function ProductsPage() {
   return (
     <POSLayout currentPath="/stock/products">
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="p-8 space-y-8 max-w-screen-2xl mx-auto">
+        <div className="p-8 space-y-8  mx-auto">
 
           {/* Header ÉPIQUE */}
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-10">
@@ -338,11 +338,196 @@ export default function ProductsPage() {
               </Card>
             </TabsContent>
 
-            {/* === CATÉGORIES === */}
-            <TabsContent value="categories" className="space-y-8">
-              {/* ... même style que produits, juste pour les catégories */}
-              {/* (je te le fais ultra propre aussi si tu veux, mais tu as déjà le pattern) */}
-            </TabsContent>
+            {/* ──────────────────────── CATÉGORIES TAB ──────────────────────── */}
+<TabsContent value="categories" className="space-y-8">
+
+  {/* Header + Recherche + Bouton */}
+  <div className="flex justify-between items-center">
+    <div>
+      <h2 className="text-4xl font-extrabold text-blue-700">Catégories de Produits</h2>
+      <p className="text-xl text-slate-600 dark:text-slate-400 mt-2">Organisez votre catalogue comme un pro</p>
+    </div>
+    <div className="flex items-center gap-6">
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+        <Input
+          placeholder="Rechercher une catégorie..."
+          value={searchCat}
+          onChange={(e) => setSearchCat(e.target.value)}
+          className="pl-12 h-12 w-80 text-lg"
+        />
+      </div>
+
+      <Dialog open={isAddCatOpen} onOpenChange={setIsAddCatOpen}>
+        <DialogTrigger asChild>
+          <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl">
+            <Plus className="h-6 w-6 mr-3" />
+            Nouvelle Catégorie
+          </Button>
+        </DialogTrigger>
+
+        {/* Modal Création / Édition Catégorie */}
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-3xl font-bold text-blue-700">
+              {editingCat ? "Modifier la Catégorie" : "Créer une Catégorie"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={catForm.handleSubmit(onSubmitCat)} className="space-y-8 mt-6">
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <Label className="text-lg font-semibold">
+                  Nom de la catégorie <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  {...catForm.register("nom", { required: "Requis" })}
+                  className="h-14 text-lg mt-3"
+                  placeholder="Ex: Boissons gazeuses, Produits laitiers, Électroménager..."
+                />
+              </div>
+
+              <div>
+                <Label className="text-lg font-semibold">Description (facultatif)</Label>
+                <Textarea
+                  {...catForm.register("description")}
+                  rows={4}
+                  className="mt-3 text-lg resize-none"
+                  placeholder="Décrivez cette catégorie pour vos équipes..."
+                />
+              </div>
+
+              <div className="flex items-center gap-6">
+                <Label className="text-lg font-semibold">Statut</Label>
+                <Controller
+                  name="is_active"
+                  control={catForm.control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={(v) => field.onChange(v === "true")}
+                      value={field.value.toString()}
+                    >
+                      <SelectTrigger className="w-64 h-14 text-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">
+                          <Badge className="bg-emerald-500 text-white">ACTIF</Badge>
+                        </SelectItem>
+                        <SelectItem value="false">
+                          <Badge className="bg-red-500 text-white">INACTIF</Badge>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-4 pt-6 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  setIsAddCatOpen(false);
+                  setEditingCat(null);
+                  catForm.reset();
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-10"
+              >
+                {editingCat ? (
+                  <>Mettre à jour la Catégorie</>
+                ) : (
+                  <>Créer la Catégorie</>
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  </div>
+
+  {/* Tableau des Catégories – Style Premium */}
+  <Card className="shadow-2xl border-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur">
+    <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30">
+      <CardTitle className="text-3xl font-bold flex items-center gap-4">
+        <Tag className="h-10 w-10 text-blue-600" />
+        Toutes les Catégories
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="p-0">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-blue-50 dark:bg-blue-900/30">
+            <TableHead className="font-bold text-lg text-blue-700">Nom</TableHead>
+            <TableHead className="font-bold text-lg text-blue-700">Description</TableHead>
+            <TableHead className="font-bold text-lg text-blue-700 text-center">Produits</TableHead>
+            <TableHead className="font-bold text-lg text-blue-700 text-center">Statut</TableHead>
+            <TableHead className="font-bold text-lg text-blue-700 text-center">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredCats.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-12 text-slate-500">
+                Aucune catégorie trouvée
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredCats.map((cat) => {
+              const productCount = products.filter(p => p.categorie === cat.id).length;
+              return (
+                <TableRow key={cat.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 h-20">
+                  <TableCell className="font-bold text-xl">{cat.nom}</TableCell>
+                  <TableCell className="text-slate-600 max-w-lg">
+                    {cat.description || <span className="italic text-slate-400">Aucune description</span>}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge className="text-lg px-4 py-2 bg-blue-100 text-blue-700">
+                      {productCount} produit{productCount > 1 ? "s" : ""}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge className={`text-white text-lg px-6 py-2 ${cat.is_active ? "bg-emerald-500" : "bg-red-500"}`}>
+                      {cat.is_active ? "ACTIF" : "INACTIF"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center gap-4">
+                      <Button size="sm" variant="ghost" onClick={() => openEditCat(cat)}>
+                        <Edit className="h-5 w-5 text-blue-600" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          if (confirm("Supprimer cette catégorie ?")) {
+                            deleteCategory(cat.id);
+                            toast.success("Catégorie supprimée");
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-5 w-5 text-red-600" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    </CardContent>
+  </Card>
+</TabsContent>
           </Tabs>
         </div>
       </div>
