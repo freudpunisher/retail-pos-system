@@ -1,470 +1,339 @@
-"use client"
-import React, { useEffect, useState } from "react"
-import { useForm, Controller, useFieldArray } from "react-hook-form"
-import { format } from "date-fns"
-import { fr } from "date-fns/locale"
-import toast from "react-hot-toast"
-import { POSLayout } from "@/components/pos-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+"use client";
+import { useState, useMemo, useEffect } from "react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { POSLayout } from "@/components/pos-layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Search, Plus, Edit, CheckCircle2, Loader2, Package, Store, User, FileText, Eye,
-  ClipboardList, Building2, Calendar, Hash, MessageSquare, AlertCircle
-} from "lucide-react"
+  Search, Package, TrendingUp, TrendingDown, ArrowRightLeft,
+  Loader2, RefreshCw, Calendar, User, DollarSign, AlertCircle,
+  ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight
+} from "lucide-react";
+import { useStockMovements } from "@/hooks/useStockMovements";
 
-import { usePointsVente } from "@/hooks/usePointsVente"
-import { useStocks } from "@/hooks/useStock"
-import { useInventaires } from "@/hooks/useInventaires"
-import { Inventaire } from "@/types/inventaire"
-import { getCurrentUser } from "@/lib/auth"
+const movementTypes = [
+  { value: "all", label: "Tous les types" },
+  { value: "entree", label: "Entrée" },
+  { value: "sortie", label: "Sortie" },
+  { value: "transfert_in", label: "Transfert entrant" },
+  { value: "transfert_out", label: "Transfert sortant" },
+  { value: "ajustement", label: "Ajustement" },
+  { value: "inventaire", label: "Inventaire" },
+];
 
-const CURRENT_USER = getCurrentUser()
+export default function MovementsPage() {
+  const { movements, products, pointsVente, users, loading, error, refetch } = useStockMovements();
 
-export default function InventairePage() {
-  const { pointsVente, pointsVenteLoading , fetchPointsVente} = usePointsVente()
-  const { stocks, loading: stockLoading, fetchStocks } = useStocks()
-  const { inventaires, loading: invLoading, add, edit, validate } = useInventaires()
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedType, setSelectedType] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(15);
 
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [isAddOpen, setIsAddOpen] = useState(false)
-  const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isViewOpen, setIsViewOpen] = useState(false)
-  const [currentInventaire, setCurrentInventaire] = useState<Inventaire | null>(null)
+  // Helpers
+  const getProductName = (id: string) => products.find(p => p.id === id)?.nom || "Produit inconnu";
+  const getPointVenteName = (id: string) => pointsVente.find(p => p.id === id)?.nom || "Inconnu";
+  const getUserName = (id: string) => {
+    const user = users.find(u => u.id === id);
+    return user ? `${user.prenom || ""} ${user.nom || ""}`.trim() || "Utilisateur" : "Inconnu";
+  };
 
-  type Ligne = {
-    produit: string
-    quantite_stock: number
-    quantite_reel: number
-  }
+  const getMovementConfig = (type: string) => {
+    const config: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+      entree: { icon: <TrendingUp className="h-5 w-5" />, color: "bg-emerald-500", label: "Entrée" },
+      sortie: { icon: <TrendingDown className="h-5 w-5" />, color: "bg-red-500", label: "Sortie" },
+      transfert_in: { icon: <ArrowRightLeft className="h-5 w-5 rotate-180" />, color: "bg-blue-500", label: "Transf. entrant" },
+      transfert_out: { icon: <ArrowRightLeft className="h-5 w-5" />, color: "bg-orange-500", label: "Transf. sortant" },
+      ajustement: { icon: <Package className="h-5 w-5" />, color: "bg-indigo-500", label: "Ajustement" },
+      inventaire: { icon: <Package className="h-5 w-5" />, color: "bg-slate-500", label: "Inventaire" },
+    };
+    return config[type] || { icon: <Package className="h-5 w-5" />, color: "bg-muted", label: type };
+  };
 
-  type FormValues = {
-    numero_inventaire: string
-    point_vente: string
-    commentaire: string
-    lignes: Ligne[]
-  }
+  // Filtrage & Stats
+  const filteredMovements = useMemo(() => {
+    return movements.filter(m => {
+      const productName = getProductName(m.stock).toLowerCase();
+      const motif = (m.motif || "").toLowerCase();
+      const searchMatch = productName.includes(searchTerm.toLowerCase()) || motif.includes(searchTerm.toLowerCase());
+      const typeMatch = selectedType === "all" || m.type_mouvement === selectedType;
+      return searchMatch && typeMatch;
+    });
+  }, [movements, searchTerm, selectedType]);
 
-  const { register, control, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
-    defaultValues: {
-      numero_inventaire: `INV-${Date.now()}`,
-      point_vente: "",
-      commentaire: "",
-      lignes: [],
-    },
-  })
+  const stats = useMemo(() => {
+    const entrees = filteredMovements.filter(m => ["entree", "transfert_in"].includes(m.type_mouvement));
+    const sorties = filteredMovements.filter(m => ["sortie", "transfert_out"].includes(m.type_mouvement));
+    const totalEntrees = entrees.reduce((s, m) => s + Math.abs(m.quantite), 0);
+    const totalSorties = sorties.reduce((s, m) => s + Math.abs(m.quantite), 0);
+    const totalValue = filteredMovements.reduce((s, m) => s + (Math.abs(m.quantite) * Number(m.prix_unitaire || 0)), 0);
 
-  const { fields, append, remove } = useFieldArray<FormValues, "lignes">({ control, name: "lignes" })
-  const watchedPointVente = watch("point_vente")
-  const filteredStock = watchedPointVente ? stocks.filter((s: any) => s.point_vente === watchedPointVente) : []
+    return { totalMovements: filteredMovements.length, totalEntrees, totalSorties, totalValue };
+  }, [filteredMovements]);
 
-  const filtered = inventaires.filter(i => {
-    const matchesSearch = i.numero_inventaire.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = selectedStatus === "all" || i.status === selectedStatus
-    return matchesSearch && matchesStatus
-  })
+  const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
+  const paginated = filteredMovements.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  useEffect(() => {
-    fetchPointsVente();
-    fetchStocks();
+  useEffect(() => setCurrentPage(1), [searchTerm, selectedType]);
 
-  }, [])
+  const formatDate = (date: string) => format(new Date(date), "dd MMM yyyy 'à' HH:mm", { locale: fr });
 
-  const onSubmit = async (data: any) => {
-    const payload = {
-      ...data,
-      utilisateur_cree: CURRENT_USER!.id,
-      stock_inventaire_traitee: false,
-      lignes: data.lignes.map((l: any) => ({
-        produit: l.produit,
-        quantite_stock: l.quantite_stock,
-        quantite_reel: l.quantite_reel,
-      })),
-    }
-
-    try {
-      if (currentInventaire?.id) {
-        await edit(currentInventaire.id, payload)
-        toast.success("Inventaire mis à jour")
-        setIsEditOpen(false)
-      } else {
-        await add(payload)
-        toast.success("Inventaire créé avec succès")
-        setIsAddOpen(false)
-      }
-      reset()
-      setCurrentInventaire(null)
-    } catch {
-      toast.error("Erreur lors de la sauvegarde")
-    }
-  }
-
-  const openEdit = (inv: Inventaire) => {
-    setCurrentInventaire(inv)
-    reset({
-      numero_inventaire: inv.numero_inventaire,
-      point_vente: inv.point_vente,
-      commentaire: inv.commentaire ?? "",
-      lignes: inv.lignes.map(l => ({
-        produit: l.produit,
-        quantite_stock: l.quantite_stock,
-        quantite_reel: l.quantite_reel,
-      })),
-    })
-    setIsEditOpen(true)
-  }
-
-  const openView = (inv: Inventaire) => {
-    setCurrentInventaire(inv)
-    reset({
-      numero_inventaire: inv.numero_inventaire,
-      point_vente: inv.point_vente,
-      commentaire: inv.commentaire ?? "",
-      lignes: inv.lignes.map(l => ({
-        produit: l.produit,
-        quantite_stock: l.quantite_stock,
-        quantite_reel: l.quantite_reel,
-      })),
-    })
-    setIsViewOpen(true)
-  }
-
-  const globalLoading = pointsVenteLoading || stockLoading || invLoading
-
-  if (globalLoading && inventaires.length === 0) {
+  if (loading) {
     return (
-      <POSLayout currentPath="/stock/inventaire">
-        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-500 mr-4" />
-          <p className="text-xl text-slate-600 dark:text-slate-400">Chargement des inventaires...</p>
+      <POSLayout currentPath="/stock/mouvements">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+          <Loader2 className="h-16 w-16 animate-spin text-blue-600 mb-6" />
+          <p className="text-xl text-slate-600 dark:text-slate-400">Chargement des mouvements de stock...</p>
         </div>
       </POSLayout>
-    )
+    );
+  }
+
+  if (error) {
+    return (
+      <POSLayout currentPath="/stock/mouvements">
+        <div className="p-8">
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/30">
+            <CardContent className="pt-8 text-center">
+              <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+              <p className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Erreur de chargement</p>
+              <p className="text-muted-foreground mb-6">{error}</p>
+              <Button onClick={refetch} size="lg" className="bg-blue-600 hover:bg-blue-700">
+                <RefreshCw className="h-5 w-5 mr-2" />
+                Réessayer
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </POSLayout>
+    );
   }
 
   return (
-    <POSLayout currentPath="/stock/inventaire">
+    <POSLayout currentPath="/stock/mouvements">
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="p-6 space-y-8  mx-auto">
+        <div className="p-6 space-y-8 max-w-screen-2xl mx-auto">
 
-          {/* Header Magnifique */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 p-8">
+          {/* Header BLEU PROFESSIONNEL */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-8">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-6">
-                <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-xl">
-                  <ClipboardList className="h-10 w-10 text-white" />
+              <div className="flex items-center gap-6">
+                <div className="p-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl shadow-2xl">
+                  <ArrowRightLeft className="h-16 w-16 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl font-extrabold text-slate-800 dark:text-slate-100">Gestion des Inventaires</h1>
-                  <p className="text-lg text-slate-600 dark:text-slate-400 mt-2 flex items-center">
-                    <Package className="h-5 w-5 mr-2 text-blue-500" />
-                    Comptage physique précis du stock par point de vente
+                  <h1 className="text-5xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                    Mouvements de Stock
+                  </h1>
+                  <p className="text-xl text-slate-600 dark:text-slate-400 mt-2 flex items-center gap-2">
+                    <Package className="h-6 w-6 text-blue-600" />
+                    Suivi complet et en temps réel des entrées/sorties
                   </p>
                 </div>
               </div>
-              <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg">
-                    <Plus className="h-5 w-5 mr-2" />
-                    Nouvel Inventaire
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800" style={{ width: "80vw", maxWidth: "80vw" }}>
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold flex items-center">
-                      <ClipboardList className="h-7 w-7 mr-3 text-blue-600" />
-                      Créer un Inventaire
-                    </DialogTitle>
-                  </DialogHeader>
-                  <InventaireForm
-                    mode="create"
-                    onSubmit={handleSubmit(onSubmit)}
-                    register={register}
-                    control={control}
-                    watch={watch}
-                    setValue={setValue}
-                    fields={fields}
-                    append={append}
-                    remove={remove}
-                    pointsVente={pointsVente}
-                    filteredStock={filteredStock}
-                    onCancel={() => setIsAddOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
+              <Button
+                size="lg"
+                onClick={refetch}
+                disabled={loading}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl"
+              >
+                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <RefreshCw className="h-6 w-6 mr-3" />}
+                Actualiser
+              </Button>
             </div>
           </div>
 
+          {/* Stats en BLEU CORPORATE */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-2xl border-0 overflow-hidden">
+              <CardContent className="pt-8 pb-10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-lg">Total Mouvements</p>
+                    <p className="text-5xl font-extrabold mt-2">{stats.totalMovements.toLocaleString()}</p>
+                  </div>
+                  <ArrowRightLeft className="h-20 w-20 opacity-30" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-2xl border-0">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-emerald-100">Entrées</p>
+                    <p className="text-4xl font-bold mt-2">+{stats.totalEntrees.toLocaleString()}</p>
+                  </div>
+                  <TrendingUp className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-2xl border-0">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-red-100">Sorties</p>
+                    <p className="text-4xl font-bold mt-2">−{stats.totalSorties.toLocaleString()}</p>
+                  </div>
+                  <TrendingDown className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-indigo-600 to-blue-700 text-white shadow-2xl border-0">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-indigo-100">Valeur Totale</p>
+                    <p className="text-3xl font-extrabold mt-2">{stats.totalValue.toLocaleString()} FBU</p>
+                  </div>
+                  <DollarSign className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Filtres */}
-          <Card className="shadow-md border-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur">
+          <Card className="shadow-xl border-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur">
             <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col lg:flex-row gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <Input placeholder="Rechercher un inventaire..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-12 h-12 text-lg bg-slate-50 dark:bg-slate-700" />
+                  <Input
+                    placeholder="Rechercher par produit, motif..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="pl-12 h-14 text-lg bg-slate-50 dark:bg-slate-700"
+                  />
                 </div>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="w-64 h-12"><SelectValue /></SelectTrigger>
+                <Select value={selectedType} onValueChange={setSelectedType}>
+                  <SelectTrigger className="w-full lg:w-64 h-14 text-lg">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="pending">En cours</SelectItem>
-                    <SelectItem value="validated">Validés</SelectItem>
+                    {movementTypes.map(t => (
+                      <SelectItem key={t.value} value={t.value} className="text-base">
+                        {t.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </CardContent>
           </Card>
 
-          {/* Liste */}
-          <Card className="shadow-lg border-0 overflow-hidden bg-white/90 dark:bg-slate-800/90 backdrop-blur">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
-              <CardTitle className="text-2xl flex items-center">
-                <FileText className="h-7 w-7 mr-3 text-blue-600 dark:text-blue-400" />
-                Liste des Inventaires
+          {/* Tableau BLEU PRO */}
+          <Card className="shadow-2xl border-0 overflow-hidden bg-white/95 dark:bg-slate-800/95 backdrop-blur">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30">
+              <CardTitle className="text-3xl font-bold flex items-center gap-4">
+                <Package className="h-10 w-10 text-blue-600" />
+                Historique Complet des Mouvements
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50 dark:bg-slate-700">
-                    <TableHead className="font-bold"><Hash className="h-4 w-4 inline mr-2" />Numéro</TableHead>
-                    <TableHead className="font-bold"><Building2 className="h-4 w-4 inline mr-2" />Point de vente</TableHead>
-                    <TableHead className="font-bold"><ClipboardList className="h-4 w-4 inline mr-2" />Statut</TableHead>
-                    <TableHead className="font-bold text-center"><Package className="h-4 w-4 inline mr-2" />Lignes</TableHead>
-                    <TableHead className="font-bold"><User className="h-4 w-4 inline mr-2" />Créé par</TableHead>
-                    <TableHead className="font-bold"><Calendar className="h-4 w-4 inline mr-2" />Date</TableHead>
-                    <TableHead className="font-bold text-center">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                        <Package className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                        <p className="text-lg">Aucun inventaire trouvé</p>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filtered.map(i => {
-                      const pv = pointsVente.find(p => p.id === i.point_vente)
-                      const isValidated = i.status === "validate"
+              {paginated.length === 0 ? (
+                <div className="py-24 text-center">
+                  <Package className="h-24 w-24 mx-auto mb-6 text-slate-300 dark:text-slate-700" />
+                  <p className="text-2xl font-semibold text-slate-500">Aucun mouvement trouvé</p>
+                  <p className="text-slate-400 mt-2">Modifiez ваши filtres pour voir plus de résultats</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-blue-50 dark:bg-blue-900/30">
+                        <TableHead className="font-bold text-lg text-blue-700 dark:text-blue-300">Type</TableHead>
+                        <TableHead className="font-bold text-lg">Produit</TableHead>
+                        <TableHead className="font-bold text-lg">Point de vente</TableHead>
+                        <TableHead className="font-bold text-lg text-center">Qté</TableHead>
+                        <TableHead className="font-bold text-lg text-center">Prix unitaire</TableHead>
+                        <TableHead className="font-bold text-lg">Motif</TableHead>
+                        <TableHead className="font-bold text-lg">Utilisateur</TableHead>
+                        <TableHead className="font-bold text-lg">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginated.map((m) => {
+                        const config = getMovementConfig(m.type_mouvement);
+                        return (
+                          <TableRow key={m.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all h-20">
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className={`p-3 rounded-xl ${config.color} text-white`}>
+                                  {config.icon}
+                                </div>
+                                <span className="font-semibold text-lg">{config.label}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-lg">{getProductName(m.stock)}</TableCell>
+                            <TableCell className="font-medium">{getPointVenteName(m.point_vente || m.stock)}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={m.quantite > 0 ? "default" : "destructive"} className="text-xl px-5 py-2 font-bold">
+                                {m.quantite > 0 ? "+" : ""}{Math.abs(m.quantite)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center font-mono text-lg">
+                              {Number(m.prix_unitaire || 0).toLocaleString()} FBU
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-base px-4 py-2">
+                                {m.motif || "—"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg">
+                                {getUserName(m.utilisateur).charAt(0)}
+                              </div>
+                              <span className="font-medium">{getUserName(m.utilisateur)}</span>
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-400">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-5 w-5 text-blue-600" />
+                                <span className="font-medium">{formatDate(m.created_at)}</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
 
-                      return (
-                        <TableRow key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                          <TableCell className="font-semibold text-blue-600 dark:text-blue-400">{i.numero_inventaire}</TableCell>
-                          <TableCell className="font-medium flex items-center"><Store className="h-4 w-4 mr-2 text-slate-500" />{pv?.nom || "—"}</TableCell>
-                          <TableCell>{isValidated ? <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">Validé</Badge> : <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">En cours</Badge>}</TableCell>
-                          <TableCell className="text-center font-semibold">{i.lignes.length}</TableCell>
-                          <TableCell>{i.utilisateur_cree}</TableCell>
-                          <TableCell>{format(new Date(i.date_creation!), "dd MMM yyyy", { locale: fr })}</TableCell>
-                          <TableCell>
-                            <div className="flex justify-center gap-2">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button size="sm" variant="outline" onClick={() => openView(i)}>
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Voir le détail</TooltipContent>
-                              </Tooltip>
-
-                              {!isValidated && (
-                                <>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button size="sm" variant="ghost" onClick={() => openEdit(i)}>
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Modifier</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button size="sm" className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md" onClick={() => validate(i.id!)}>
-                                        <CheckCircle2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Valider l'inventaire</TooltipContent>
-                                  </Tooltip>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                  {/* Pagination BLEU */}
+                  <div className="flex items-center justify-between px-8 py-6 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/50 border-t">
+                    <p className="text-lg text-slate-700 dark:text-slate-300">
+                      Affichage <strong>{((currentPage - 1) * itemsPerPage) + 1}</strong> à{" "}
+                      <strong>{Math.min(currentPage * itemsPerPage, filteredMovements.length)}</strong> sur{" "}
+                      <strong>{filteredMovements.length}</strong> mouvements
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" size="icon" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+                        <ChevronsLeft className="h-5 w-5" />
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                        <ChevronLeft className="h-5 w-5" />
+                      </Button>
+                      <span className="px-6 py-3 bg-white dark:bg-slate-800 rounded-xl font-bold text-lg border border-blue-300 dark:border-blue-700">
+                        Page {currentPage} / {totalPages || 1}
+                      </span>
+                      <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                        <ChevronRight className="h-5 w-5" />
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>
+                        <ChevronsRight className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
-
-          {/* Modals */}
-          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogContent className=" max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800" style={{ width: "80vw", maxWidth: "80vw" }}>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold flex items-center">
-                  <Edit className="h-7 w-7 mr-3 text-purple-600" />
-                  Modifier l'Inventaire
-                </DialogTitle>
-              </DialogHeader>
-              <InventaireForm mode="edit" onSubmit={handleSubmit(onSubmit)} register={register} control={control} watch={watch} setValue={setValue} fields={fields} append={append} remove={remove} pointsVente={pointsVente} filteredStock={filteredStock} onCancel={() => { setIsEditOpen(false); setCurrentInventaire(null); }} />
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-            <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800" style={{ width: "80vw", maxWidth: "80vw" }}>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold flex items-center">
-                  <Eye className="h-7 w-7 mr-3 text-blue-600" />
-                  Détail de l'Inventaire
-                </DialogTitle>
-              </DialogHeader>
-              <InventaireForm mode="view" onSubmit={() => {}} register={register} control={control} watch={watch} setValue={setValue} fields={fields} append={() => {}} remove={() => {}} pointsVente={pointsVente} filteredStock={filteredStock} onCancel={() => setIsViewOpen(false)} />
-            </DialogContent>
-          </Dialog>
-
         </div>
       </div>
     </POSLayout>
-  )
-}
-
-/* Formulaire Magnifique (create / edit / view) */
-function InventaireForm({ mode, onSubmit, register, control, watch, setValue, fields, append, remove, pointsVente, filteredStock, onCancel }: any) {
-  const isViewMode = mode === "view"
-  const watchedPointVente = watch("point_vente")
-
-  return (
-    <form onSubmit={isViewMode ? e => e.preventDefault() : onSubmit} className="space-y-8">
-      <div className="grid grid-cols-2 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2 text-blue-600" />Numéro d'inventaire</Label>
-          <Input {...register("numero_inventaire")} readOnly={isViewMode} className="h-12 text-lg" />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold flex items-center"><Store className="h-5 w-5 mr-2 text-purple-600" />Point de vente</Label>
-          {isViewMode ? (
-            <div className="h-12 px-4 flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg text-lg font-medium">
-              {pointsVente.find((p: any) => p.id === watchedPointVente)?.nom || "—"}
-            </div>
-          ) : (
-            <Controller name="point_vente" control={control} render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger className="h-12 text-lg"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                <SelectContent>{pointsVente.map((pv: any) => <SelectItem key={pv.id} value={pv.id}>{pv.nom}</SelectItem>)}</SelectContent>
-              </Select>
-            )} />
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold flex items-center"><User className="h-5 w-5 mr-2 text-green-600" />Créé par</Label>
-          <div className="h-12 px-4 flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg text-lg font-medium">
-            {CURRENT_USER?.nom || CURRENT_USER?.username || "Inconnu"}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold flex items-center"><MessageSquare className="h-5 w-5 mr-2 text-orange-600" />Commentaire (optionnel)</Label>
-          <Input {...register("commentaire")} readOnly={isViewMode} placeholder="Notes..." className="h-12 text-lg" />
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label className="text-2xl font-bold flex items-center"><Package className="h-8 w-8 mr-3 text-blue-600" />Articles à compter</Label>
-          <Badge variant="secondary" className="text-lg px-4 py-2">{fields.length} article{fields.length > 1 ? "s" : ""}</Badge>
-        </div>
-
-        <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 bg-slate-50/50 dark:bg-slate-800/50">
-          {fields.length === 0 ? (
-            <div className="text-center py-12"><Package className="h-16 w-16 mx-auto mb-4 text-slate-400" /><p className="text-lg text-slate-500">Aucun article ajouté</p></div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-100 dark:bg-slate-700">
-                  <TableHead className="font-bold">Produit</TableHead>
-                  <TableHead className="text-center font-bold">Stock système</TableHead>
-                  <TableHead className="text-center font-bold">Quantité réelle</TableHead>
-                  {!isViewMode && <TableHead />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fields.map((field: any, idx: number) => {
-                  const prodId = watch(`lignes.${idx}.produit`)
-                  const stockItem = filteredStock.find((s: any) => s.produit === prodId)
-                  const qtyStock = stockItem?.quantite_actuelle ?? 0
-                  const productName = stockItem ? `${stockItem.produit_nom} (${stockItem.produit_reference})` : "—"
-
-                  return (
-                    <TableRow key={field.id} className="hover:bg-slate-50 dark:hover:bg-slate-700">
-                      <TableCell>
-                        {isViewMode ? (
-                          <span className="font-medium">{productName}</span>
-                        ) : (
-                          <Controller name={`lignes.${idx}.produit`} control={control} render={({ field: f }) => (
-                            <Select onValueChange={(v) => { f.onChange(v); setValue(`lignes.${idx}.quantite_stock`, filteredStock.find((s: any) => s.produit === v)?.quantite_actuelle ?? 0) }} value={f.value}>
-                              <SelectTrigger><SelectValue placeholder="Choisir un produit" /></SelectTrigger>
-                              <SelectContent>
-                                {filteredStock.map((s: any) => (
-                                  <SelectItem key={s.id} value={s.produit}>
-                                    <div className="flex justify-between w-full">
-                                      <span>{s.produit_nom} ({s.produit_reference})</span>
-                                      <Badge variant="secondary" className="ml-4">Stock: {s.quantite_actuelle}</Badge>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )} />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center"><div className="font-bold text-lg text-blue-600">{qtyStock}</div></TableCell>
-                      <TableCell>
-                        {isViewMode ? (
-                          <div className="text-center text-lg font-bold text-emerald-600">{watch(`lignes.${idx}.quantite_reel`) || 0}</div>
-                        ) : (
-                          <Input type="number" className="h-12 text-center text-lg font-semibold" {...register(`lignes.${idx}.quantite_reel`, { valueAsNumber: true })} />
-                        )}
-                      </TableCell>
-                      {!isViewMode && (
-                        <TableCell>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)} className="text-red-600 hover:bg-red-50">
-                            <AlertCircle className="h-5 w-5" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          )}
-
-          {!isViewMode && (
-            <Button type="button" variant="outline" size="lg" className="w-full mt-6 border-2 border-dashed border-blue-400 hover:border-blue-600 hover:bg-blue-50" onClick={() => append({ produit: "", quantite_stock: 0, quantite_reel: 0 })}>
-              <Plus className="h-6 w-6 mr-2" />Ajouter un article
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-4 pt-6 border-t">
-        <Button type="button" variant="outline" size="lg" onClick={onCancel}>
-          {isViewMode ? "Fermer" : "Annuler"}
-        </Button>
-        {!isViewMode && (
-          <Button type="submit" size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8">
-            {mode === "edit" ? "Mettre à jour" : "Créer"} l'inventaire
-          </Button>
-        )}
-      </div>
-    </form>
-  )
+  );
 }
