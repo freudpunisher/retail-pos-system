@@ -174,7 +174,7 @@ export default function ProductsPage() {
     setEditingProd(prod);
     prodForm.reset({
       nom: prod.nom,
-      unite_mesure: prod.unite_mesure,
+      unite_mesure: prod.unite_mesure as UniteMesureEnum,
       prix_vente: prod.prix_vente,
       is_active: prod.is_active,
       has_expiry: prod.has_expiry || false,
@@ -529,7 +529,7 @@ export default function ProductsPage() {
                         <TableHead className="font-bold text-lg text-blue-700">Produit</TableHead>
                         <TableHead className="font-bold text-lg text-blue-700">Catégorie</TableHead>
                         <TableHead className="font-bold text-lg text-blue-700">Prix</TableHead>
-                        <TableHead className="font-bold text-lg text-blue-700 text-center">Statut</TableHead>
+                        {/* <TableHead className="font-bold text-lg text-blue-700 text-center">Statut</TableHead> */}
                         <TableHead className="font-bold text-lg text-blue-700 text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -549,11 +549,11 @@ export default function ProductsPage() {
                               <TableCell className="font-bold text-xl">{p.nom}</TableCell>
                               <TableCell><Badge variant="secondary" className="text-base">{cat?.nom || "Inconnue"}</Badge></TableCell>
                               <TableCell className="font-bold text-lg">{Number(p.prix_vente).toLocaleString()} FBU</TableCell>
-                              <TableCell className="text-center">
+                              {/* <TableCell className="text-center">
                                 <Badge className={`text-lg px-6 py-2 ${p.is_active ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
                                   {p.is_active ? "ACTIF" : "INACTIF"}
                                 </Badge>
-                              </TableCell>
+                              </TableCell> */}
                               <TableCell className="text-center">
                                 <div className="flex justify-center gap-3">
                                   <Button 
@@ -564,7 +564,7 @@ export default function ProductsPage() {
                                   >
                                     <Edit className="h-5 w-5 text-blue-600" />
                                   </Button>
-                                  <Button 
+                                  {/* <Button 
                                     size="sm" 
                                     variant="ghost" 
                                     onClick={() => handleToggleProd(p)}
@@ -578,7 +578,7 @@ export default function ProductsPage() {
                                     ) : (
                                       <ToggleLeft className="h-6 w-6 text-red-600" />
                                     )}
-                                  </Button>
+                                  </Button> */}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -782,7 +782,7 @@ export default function ProductsPage() {
                                   >
                                     <Edit className="h-5 w-5 text-blue-600" />
                                   </Button>
-                                  <Button
+                                  {/* <Button
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleDeleteCat(cat.id)}
@@ -794,7 +794,7 @@ export default function ProductsPage() {
                                     ) : (
                                       <Trash2 className="h-5 w-5 text-red-600" />
                                     )}
-                                  </Button>
+                                  </Button> */}
                                 </div>
                               </TableCell>
                             </TableRow>
