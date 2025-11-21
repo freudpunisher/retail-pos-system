@@ -74,15 +74,15 @@ const navigation: NavigationItem[] = [
   },
   { name: "Reports", icon: FileText, href: "/reports" },
   {
-    name: "Settings",
+    name: "Parametrage",
     icon: Settings,
     href: "/settings",
     children: [
-      { name: "Users & Roles", icon: Users, href: "/settings/users" },
-      { name: "Stores", icon: Store, href: "/settings/stores" },
-      { name: "Products & Categories", icon: Package, href: "/settings/products" },
-      { name: "Payment Methods", icon: CreditCard, href: "/settings/payment-methods" },
-      { name: "Taxes & Preferences", icon: Settings, href: "/settings/preferences" },
+      { name: "Utilisateurs & Roles", icon: Users, href: "/settings/users" },
+      { name: "Point de vente", icon: Store, href: "/settings/stores" },
+      { name: "Produits", icon: Package, href: "/settings/products" },
+      // { name: "Payment Methods", icon: CreditCard, href: "/settings/payment-methods" },
+      // { name: "Taxes & Preferences", icon: Settings, href: "/settings/preferences" },
     ],
   },
 ]

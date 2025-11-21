@@ -23,6 +23,16 @@ export const userService = {
     }
   },
 
+  updateUser: async (userId: string, userData: Partial<CreateUserRequest>): Promise<User> => {
+    try {
+      const response = await axiosInstance.patch(`/api/users/${userId}/`, userData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  },
+
   toggleUserActive: async (userId: string, isActive: boolean): Promise<User> => {
     try {
       const response = await axiosInstance.patch(`/api/users/${userId}/`, { is_active: isActive });

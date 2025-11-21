@@ -19,7 +19,9 @@ import {
   Search, Plus, Shield, Users, UserCheck, Edit, ToggleLeft, ToggleRight,
   Loader2, RefreshCw, Key, Mail, Phone, Calendar, Crown, UserCog,
   Package,
-  DollarSign
+  DollarSign,
+  Save,
+  X
 } from "lucide-react";
 import { useUsers, userService, RoleEnum } from "@/services/userServices";
 import { CreateUserRequest, User } from "@/types/user";
@@ -30,6 +32,27 @@ export default function UsersPage() {
   const { users, loading, error, refetch } = useUsers();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isToggling, setIsToggling] = useState<string | null>(null);
+const [isEditOpen, setIsEditOpen] = useState(false);
+const [editingUser, setEditingUser] = useState<User | null>(null);
+const [editFormData, setEditFormData] = useState({
+  username: "",
+  email: "",
+  phone: "",
+  role: RoleEnum.ADMIN,
+  password: "",
+});
+  const handleEditUser = (user: User) => {
+  setEditingUser(user);
+  setEditFormData({
+    username: user.username,
+    email: user.email,
+    phone: user.phone || "",
+    role: user.role,
+    password: "", // Leave empty for security
+  });
+  setIsEditOpen(true);
+};
 
   const [formData, setFormData] = useState<CreateUserRequest>({
     username: "",
@@ -38,6 +61,46 @@ export default function UsersPage() {
     role: RoleEnum.ADMIN,
     password: "",
   });
+
+  const handleUpdateUser = async () => {
+  if (!editingUser) return;
+
+  try {
+    const updateData: any = {
+      username: editFormData.username,
+      email: editFormData.email,
+      phone: editFormData.phone,
+      role: editFormData.role,
+    };
+
+    // Only include password if it was changed
+    if (editFormData.password) {
+      updateData.password = editFormData.password;
+    }
+
+    await userService.updateUser(editingUser.id, updateData);
+    toast.success("Utilisateur mis à jour avec succès !");
+    setIsEditOpen(false);
+    setEditingUser(null);
+    refetch();
+  } catch (err) {
+    toast.error("Erreur lors de la mise à jour");
+  }
+};
+
+
+// const handleToggleActive = async (user: User) => {
+//   setIsToggling(user.id); // Show loading for this specific user
+//   try {
+//     await userService.toggleUserActive(user.id, !user.is_active);
+//     toast.success(user.is_active ? "Utilisateur désactivé" : "Utilisateur activé");
+//     refetch();
+//   } catch (err) {
+//     toast.error("Échec de la mise à jour");
+//   } finally {
+//     setIsToggling(null); // Remove loading state
+//   }
+// };
 
   const filteredUsers = users?.filter((user: User) =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -235,6 +298,76 @@ export default function UsersPage() {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+
+                {/* edit dialog */}
+                <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+  <DialogContent className="max-w-2xl">
+    <DialogHeader>
+      <DialogTitle className="text-3xl font-bold text-blue-700">
+        Modifier l'Utilisateur
+      </DialogTitle>
+    </DialogHeader>
+    <div className="space-y-6 mt-6">
+      {/* Same fields as create form but using editFormData */}
+      <div className="grid grid-cols-2 gap-6">
+        <div>
+          <Label className="text-lg font-semibold">Nom d'utilisateur *</Label>
+          <Input
+            value={editFormData.username}
+            onChange={(e) => setEditFormData({ ...editFormData, username: e.target.value })}
+            className="h-12 text-lg mt-2"
+          />
+        </div>
+       <div>
+                          <Label className="text-lg font-semibold">Email</Label>
+                          <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <Input
+                              type="email"
+                              value={editFormData.email}
+                              onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                              className="pl-12 h-12 text-lg mt-2"
+                              placeholder="jean@entreprise.bi"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-lg font-semibold">Téléphone</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <Input
+                              value={editFormData.phone}
+                              onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                              className="pl-12 h-12 text-lg mt-2"
+                              placeholder="+257 79 123 456"
+                            />
+                          </div>
+                        </div>
+        <div>
+          <Label className="text-lg font-semibold">Nouveau mot de passe</Label>
+          <Input
+            type="password"
+            value={editFormData.password}
+            onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
+            placeholder="Laisser vide pour ne pas changer"
+            className="h-12 text-lg mt-2"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end gap-4 pt-6 border-t">
+        <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+          <X className="h-5 w-5 mr-2" />
+          Annuler
+        </Button>
+        <Button onClick={handleUpdateUser} className="bg-gradient-to-r from-blue-600 to-blue-700">
+          <Save className="h-6 w-6 mr-3" />
+          Sauvegarder
+        </Button>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
               </div>
             </div>
           </div>
@@ -296,14 +429,14 @@ export default function UsersPage() {
                   Liste des Utilisateurs
                 </CardTitle>
                 <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <Input
-                    placeholder="Rechercher un utilisateur..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-12 h-12 w-96"
-                  />
-                </div>
+  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-blue-600 z-10" />
+  <Input
+    placeholder="Rechercher un utilisateur..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    className="pl-14 h-14 w-96 text-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 bg-white shadow-lg font-medium"
+  />
+</div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -349,16 +482,29 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-3">
-                          <Button size="sm" variant="ghost">
-                            <Edit className="h-5 w-5 text-blue-600" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleToggleActive(user)}>
-                            {user.is_active ? (
-                              <ToggleLeft className="h-6 w-6 text-red-600" />
-                            ) : (
-                              <ToggleRight className="h-6 w-6 text-emerald-600" />
-                            )}
-                          </Button>
+                         <Button 
+  size="sm" 
+  variant="ghost" 
+  onClick={() => handleEditUser(user)}
+  className="hover:bg-blue-100 hover:text-blue-700 transition-colors"
+>
+  <Edit className="h-5 w-5 text-blue-600" />
+</Button>
+                         <Button 
+  size="sm" 
+  variant="ghost" 
+  onClick={() => handleToggleActive(user)}
+  disabled={isToggling === user.id}
+  className="hover:bg-slate-100 transition-colors"
+>
+  {isToggling === user.id ? (
+    <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+  ) : user.is_active ? (
+    <ToggleRight className="h-6 w-6 text-emerald-600" />
+  ) : (
+    <ToggleLeft className="h-6 w-6 text-red-600" />
+  )}
+</Button>
                         </div>
                       </TableCell>
                     </TableRow>
