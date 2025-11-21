@@ -147,7 +147,7 @@ export default function SuppliersPage() {
   return (
     <POSLayout currentPath="/fournisseurs">
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="p-8 space-y-8 max-w-screen-2xl mx-auto">
+        <div className="p-8 space-y-8  mx-auto">
 
           {/* Header Premium */}
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-10">
@@ -246,7 +246,7 @@ export default function SuppliersPage() {
           </div>
 
           {/* Stats Premium */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-2xl border-0">
               <CardContent className="pt-8">
                 <div className="flex items-center justify-between">
@@ -280,7 +280,7 @@ export default function SuppliersPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </div> */}
 
           {/* Filtres + Tableau */}
           <Card className="shadow-2xl border-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur">
@@ -367,9 +367,9 @@ export default function SuppliersPage() {
                           <Button size="sm" variant="ghost" onClick={() => handleToggle(s.id, s.is_active)}>
                             {s.is_active ? <XCircle className="h-5 w-5 text-red-600" /> : <CheckCircle2 className="h-5 w-5 text-green-600" />}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDelete(s.id)}>
+                          {/* <Button size="sm" variant="ghost" onClick={() => handleDelete(s.id)}>
                             <Trash2 className="h-5 w-5 text-red-600" />
-                          </Button>
+                          </Button> */}
                         </div>
                       </TableCell>
                     </TableRow>

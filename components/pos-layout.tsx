@@ -47,32 +47,32 @@ interface NavigationItem {
 }
 
 const navigation: NavigationItem[] = [
-  { name: "Dashboard", icon: BarChart3, href: "/" }, // Updated dashboard href to root path
-  { name: "POS Sale", icon: Receipt, href: "/pos" },
+  { name: "Tableau de bord", icon: BarChart3, href: "/" }, // Updated dashboard href to root path
+  { name: "Vente", icon: Receipt, href: "/pos" },
   {
     name: "Stock",
     icon: Package,
     href: "/stock",
     children: [
       { name: "Stocks", icon: Package, href: "/stock" },
-      { name: "Movements", icon: Package, href: "/stock/movements" },
+      { name: "Mouvements", icon: Package, href: "/stock/movements" },
       { name: "Transfers", icon: Package, href: "/stock/transfers" },
-      { name: "Purchase Orders", icon: Package, href: "/stock/purchase-orders" },
+      { name: "Achats", icon: Package, href: "/stock/purchase-orders" },
       { name: "Inventaire", icon: Package, href: "/stock/inventaire" },
     ],
   },
-  { name: "Clients", icon: Users, href: "/clients" },
-  { name: "Suppliers", icon: Factory, href: "/suppliers" },
-  {
-    name: "Payments & Registers",
-    icon: CreditCard,
-    href: "/payments",
-    children: [
-      { name: "Payments", icon: CreditCard, href: "/payments" },
-      { name: "Cash Registers", icon: CreditCard, href: "/payments/registers" },
-    ],
-  },
-  { name: "Reports", icon: FileText, href: "/reports" },
+  // { name: "Clients", icon: Users, href: "/clients" },
+  { name: "Fournisseurs", icon: Factory, href: "/suppliers" },
+  // {
+  //   name: "Payments & Registers",
+  //   icon: CreditCard,
+  //   href: "/payments",
+  //   children: [
+  //     { name: "Payments", icon: CreditCard, href: "/payments" },
+  //     { name: "Cash Registers", icon: CreditCard, href: "/payments/registers" },
+  //   ],
+  // },
+  { name: "Raports", icon: FileText, href: "/reports" },
   {
     name: "Parametrage",
     icon: Settings,
