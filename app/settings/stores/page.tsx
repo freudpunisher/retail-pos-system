@@ -36,7 +36,7 @@ interface FormData {
 export default function StoresPage() {
   const {
     pointsVente,
-    loading: pvLoading,
+    // loading: pvLoading,
     fetchPointsVente,
     createPointVente,
     updatePointVente,
@@ -67,7 +67,7 @@ export default function StoresPage() {
   }, []);
 
   const filtered = pointsVente.filter(store => {
-    const manager = users.find(u => u.id === store.responsable);
+    const manager = (users || []).find(u => u.id === store.responsable);
     const managerName = manager ? manager.username : "";
     const search = searchTerm.toLowerCase();
     return (
@@ -125,15 +125,15 @@ export default function StoresPage() {
     fetchPointsVente();
   };
 
-  if (pvLoading || usersLoading) {
-    return (
-      <POSLayout currentPath="/admin/stores">
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-          <Loader2 className="h-16 w-16 animate-spin text-blue-600" />
-        </div>
-      </POSLayout>
-    );
-  }
+  // if (pvLoading || usersLoading) {
+  //   return (
+  //     <POSLayout currentPath="/admin/stores">
+  //       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+  //         <Loader2 className="h-16 w-16 animate-spin text-blue-600" />
+  //       </div>
+  //     </POSLayout>
+  //   );
+  // }
 
   return (
     <POSLayout currentPath="/admin/stores">
@@ -205,7 +205,7 @@ export default function StoresPage() {
                                 <SelectValue placeholder="Choisir un responsable..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {users.map(user => (
+                                {(users || []).map(user => (
                                   <SelectItem key={user.id} value={user.id}>
                                     <div className="flex items-center gap-3">
                                       <UserCheck className="h-5 w-5" />
@@ -303,7 +303,7 @@ export default function StoresPage() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map(store => {
-                    const manager = users.find(u => u.id === store.responsable);
+                    const manager = (users || []).find(u => u.id === store.responsable);
                     return (
                       <TableRow key={store.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 h-20">
                         <TableCell className="font-bold text-xl">{store.nom}</TableCell>
@@ -328,9 +328,9 @@ export default function StoresPage() {
                             <Button size="sm" variant="ghost" onClick={() => handleToggle(store.id, store.is_active)}>
                               {store.is_active ? <ToggleLeft className="h-6 w-6 text-red-600" /> : <ToggleRight className="h-6 w-6 text-emerald-600" />}
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDelete(store.id)}>
+                            {/* <Button size="sm" variant="ghost" onClick={() => handleDelete(store.id)}>
                               <Trash2 className="h-5 w-5 text-red-600" />
-                            </Button>
+                            </Button> */}
                           </div>
                         </TableCell>
                       </TableRow>
