@@ -5,16 +5,16 @@ import { Product, ProductResponse } from '../types/product.types';
 export const useProducts = () => {
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
-  const [productsError, setproductsError] = useState<string | null>(null);
+  const [productsError, setProductsError] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true);
     try {
       const data = await productService.getProducts();
       setProducts(data);
-      setproductsError(null);
+      setProductsError(null);
     } catch (err) {
-      setproductsError('Failed to fetch products');
+      setProductsError('Failed to fetch products');
     } finally {
       setProductsLoading(false);
     }
@@ -25,10 +25,10 @@ export const useProducts = () => {
     try {
       const newProduct = await productService.createProduct(product);
       setProducts((prev) => [...prev, newProduct]);
-      setproductsError(null);
+      setProductsError(null);
       return newProduct;
     } catch (err) {
-      setproductsError('Failed to create product');
+      setProductsError('Failed to create product');
       throw err;
     } finally {
       setProductsLoading(false);
@@ -42,10 +42,28 @@ export const useProducts = () => {
       setProducts((prev) =>
         prev.map((prod) => (prod.id === id ? updatedProduct : prod))
       );
-      setproductsError(null);
+      setProductsError(null);
       return updatedProduct;
     } catch (err) {
-      setproductsError('Failed to update product');
+      setProductsError('Failed to update product');
+      throw err;
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
+  // NEW: Toggle product active/inactive status
+  const toggleProductActive = useCallback(async (id: string, isActive: boolean) => {
+    setProductsLoading(true);
+    try {
+      const updatedProduct = await productService.updateProduct(id, { is_active: isActive });
+      setProducts((prev) =>
+        prev.map((prod) => (prod.id === id ? updatedProduct : prod))
+      );
+      setProductsError(null);
+      return updatedProduct;
+    } catch (err) {
+      setProductsError('Failed to toggle product status');
       throw err;
     } finally {
       setProductsLoading(false);
@@ -57,9 +75,9 @@ export const useProducts = () => {
     try {
       await productService.deleteProduct(id);
       setProducts((prev) => prev.filter((prod) => prod.id !== id));
-      setproductsError(null);
+      setProductsError(null);
     } catch (err) {
-      setproductsError('Failed to delete product');
+      setProductsError('Failed to delete product');
       throw err;
     } finally {
       setProductsLoading(false);
@@ -68,11 +86,12 @@ export const useProducts = () => {
 
   return {
     products,
-    productsLoading,
-    productsError,
+    loading: productsLoading, // Renamed for consistency
+    error: productsError,      // Renamed for consistency
     fetchProducts,
     createProduct,
     updateProduct,
+    toggleProductActive,       // NEW: Export toggle function
     deleteProduct,
   };
 };

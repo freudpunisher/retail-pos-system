@@ -44,7 +44,7 @@ interface ProductFormData {
 
 export default function ProductsPage() {
   const { categories, loading: catLoading, fetchCategories, createCategory, updateCategory, deleteCategory } = useCategories();
-  const { products, loading: prodLoading, fetchProducts, createProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, loading: prodLoading, fetchProducts, createProduct, updateProduct, toggleProductActive, deleteProduct } = useProducts();
 
   const [searchCat, setSearchCat] = useState("");
   const [searchProd, setSearchProd] = useState("");
@@ -61,7 +61,7 @@ export default function ProductsPage() {
 
   // Deleting states for loading
   const [deletingCatId, setDeletingCatId] = useState<string | null>(null);
-  const [deletingProdId, setDeletingProdId] = useState<string | null>(null);
+  const [togglingProdId, setTogglingProdId] = useState<string | null>(null);
 
   const catForm = useForm<CategoryFormData>({ defaultValues: { nom: "", description: "", is_active: true } });
   const prodForm = useForm<ProductFormData>({ 
@@ -105,8 +105,7 @@ export default function ProductsPage() {
   // Stats
   const totalProducts = products.length;
   const totalCategories = categories.length;
-  const lowStock = products.filter(p => (p.stock_actuel || 0) <= (p.stock_minimum || 0)).length;
-  const totalValue = products.reduce((acc, p) => acc + ((p.stock_actuel || 0) * Number(p.prix_vente)), 0);
+  const activeProducts = products.filter(p => p.is_active).length;
 
   // Category handlers
   const onSubmitCat = async (data: CategoryFormData) => {
@@ -184,18 +183,15 @@ export default function ProductsPage() {
     setIsAddProdOpen(true);
   };
 
-  const handleDeleteProd = async (prodId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
-    
-    setDeletingProdId(prodId);
+  const handleToggleProd = async (prod: ProductResponse) => {
+    setTogglingProdId(prod.id);
     try {
-      await deleteProduct(prodId);
-      toast.success("Produit supprimé avec succès !");
-      fetchProducts();
+      await toggleProductActive(prod.id, !prod.is_active);
+      toast.success(prod.is_active ? "Produit désactivé" : "Produit activé");
     } catch (err) {
-      toast.error("Erreur lors de la suppression");
+      toast.error("Échec de la mise à jour");
     } finally {
-      setDeletingProdId(null);
+      setTogglingProdId(null);
     }
   };
 
@@ -360,10 +356,10 @@ export default function ProductsPage() {
               <CardContent className="pt-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-orange-100">Stock faible</p>
-                    <p className="text-4xl font-bold mt-2">{lowStock}</p>
+                    <p className="text-orange-100">Actifs</p>
+                    <p className="text-4xl font-bold mt-2">{activeProducts}</p>
                   </div>
-                  <AlertTriangle className="h-16 w-16 opacity-80" />
+                  <Package className="h-16 w-16 opacity-80" />
                 </div>
               </CardContent>
             </Card>
@@ -371,10 +367,10 @@ export default function ProductsPage() {
               <CardContent className="pt-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-purple-100">Valeur stock</p>
-                    <p className="text-4xl font-bold mt-2">{totalValue.toLocaleString()} FBU</p>
+                    <p className="text-purple-100">Catégories</p>
+                    <p className="text-4xl font-bold mt-2">{totalCategories}</p>
                   </div>
-                  <DollarSign className="h-16 w-16 opacity-80" />
+                  <Tag className="h-16 w-16 opacity-80" />
                 </div>
               </CardContent>
             </Card>
@@ -432,11 +428,32 @@ export default function ProductsPage() {
                     setIsAddProdOpen(open);
                     if (!open) {
                       setEditingProd(null);
-                      prodForm.reset();
+                      prodForm.reset({
+                        nom: "",
+                        unite_mesure: UniteMesureEnum.Piece,
+                        prix_vente: "",
+                        is_active: true,
+                        has_expiry: false,
+                        categorie: ""
+                      });
                     }
                   }}>
                     <DialogTrigger asChild>
-                      <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl h-14">
+                      <Button 
+                        size="lg" 
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl h-14"
+                        onClick={() => {
+                          setEditingProd(null);
+                          prodForm.reset({
+                            nom: "",
+                            unite_mesure: UniteMesureEnum.Piece,
+                            prix_vente: "",
+                            is_active: true,
+                            has_expiry: false,
+                            categorie: ""
+                          });
+                        }}
+                      >
                         <Plus className="h-6 w-6 mr-3" /> Nouveau Produit
                       </Button>
                     </DialogTrigger>
@@ -481,7 +498,14 @@ export default function ProductsPage() {
                           <Button type="button" variant="outline" size="lg" onClick={() => { 
                             setIsAddProdOpen(false); 
                             setEditingProd(null); 
-                            prodForm.reset();
+                            prodForm.reset({
+                              nom: "",
+                              unite_mesure: UniteMesureEnum.Piece,
+                              prix_vente: "",
+                              is_active: true,
+                              has_expiry: false,
+                              categorie: ""
+                            });
                           }}>
                             <X className="h-5 w-5 mr-2" />
                             Annuler
@@ -543,14 +567,16 @@ export default function ProductsPage() {
                                   <Button 
                                     size="sm" 
                                     variant="ghost" 
-                                    onClick={() => handleDeleteProd(p.id)}
-                                    disabled={deletingProdId === p.id}
-                                    className="hover:bg-red-100 transition-colors"
+                                    onClick={() => handleToggleProd(p)}
+                                    disabled={togglingProdId === p.id}
+                                    className="hover:bg-slate-100 transition-colors"
                                   >
-                                    {deletingProdId === p.id ? (
-                                      <Loader2 className="h-5 w-5 animate-spin text-red-600" />
+                                    {togglingProdId === p.id ? (
+                                      <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+                                    ) : p.is_active ? (
+                                      <ToggleRight className="h-6 w-6 text-emerald-600" />
                                     ) : (
-                                      <Trash2 className="h-5 w-5 text-red-600" />
+                                      <ToggleLeft className="h-6 w-6 text-red-600" />
                                     )}
                                   </Button>
                                 </div>
@@ -598,11 +624,18 @@ export default function ProductsPage() {
                     setIsAddCatOpen(open);
                     if (!open) {
                       setEditingCat(null);
-                      catForm.reset();
+                      catForm.reset({ nom: "", description: "", is_active: true });
                     }
                   }}>
                     <DialogTrigger asChild>
-                      <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl h-14">
+                      <Button 
+                        size="lg" 
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-xl h-14"
+                        onClick={() => {
+                          setEditingCat(null);
+                          catForm.reset({ nom: "", description: "", is_active: true });
+                        }}
+                      >
                         <Plus className="h-6 w-6 mr-3" />
                         Nouvelle Catégorie
                       </Button>
@@ -673,7 +706,7 @@ export default function ProductsPage() {
                             onClick={() => {
                               setIsAddCatOpen(false);
                               setEditingCat(null);
-                              catForm.reset();
+                              catForm.reset({ nom: "", description: "", is_active: true });
                             }}
                           >
                             <X className="h-5 w-5 mr-2" />
