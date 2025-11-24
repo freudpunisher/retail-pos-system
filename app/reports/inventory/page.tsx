@@ -181,17 +181,17 @@ export default function InventoryReportPage() {
                     </div>
                     <div>
                       <Label>Point de vente</Label>
-                      <Select value={filters.point_vente || ""} onValueChange={v => setFilters({ point_vente: v || undefined })}>
+                      <Select value={filters.point_vente || ""} onValueChange={v => setFilters({ ...filters, point_vente: v || undefined })}>
                         <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
-                        <SelectContent><SelectItem value="">Tous</SelectItem></SelectContent>
+                        <SelectContent><SelectItem value="None">Tous</SelectItem></SelectContent>
                       </Select>
                     </div>
                     <div>
                       <Label>État</Label>
-                      <Select value={filters.etat || ""} onValueChange={v => setFilters({ etat: v || undefined })}>
+                      <Select value={filters.etat ?? "none"} onValueChange={v => setFilters({ ...filters, etat: v === "none" ? undefined : (v as "alerte" | "rupture" | "normal") })}>
                         <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Tous</SelectItem>
+                          <SelectItem value="none">Tous</SelectItem>
                           <SelectItem value="alerte">En alerte</SelectItem>
                           <SelectItem value="rupture">En rupture</SelectItem>
                           <SelectItem value="normal">Normal</SelectItem>
