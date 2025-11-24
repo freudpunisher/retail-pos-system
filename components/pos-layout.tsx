@@ -77,6 +77,8 @@ const navigation: NavigationItem[] = [
     href: "/reports",
     children: [
       { name: "ventes", icon: Package, href: "/reports/sales" },
+      { name: "Approvisionnements", icon: Package, href: "/reports/purchase" },
+      { name: "Inventaire", icon: Package, href: "/reports/inventory" },
       
     ],
   },

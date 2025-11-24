@@ -31,7 +31,7 @@ export function useSalesDetail(initialFilters: Partial<Filters> = {}): UseSalesD
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFiltersState] = useState<Filters>({
-    periode: "month",
+    periode: "year",
     point_vente: "",
     vendeur: "",
     date_debut: "",
