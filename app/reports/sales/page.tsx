@@ -9,13 +9,16 @@ import { POSLayout } from "@/components/pos-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Calendar, DollarSign, ShoppingCart, Receipt, TrendingUp, User, Printer, ChevronDown, ChevronUp } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Calendar, DollarSign, ShoppingCart, Receipt, TrendingUp, User, Printer, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import type { SalesDetailResponse } from "@/types/sales-report.types";
 
 export default function SalesDetailPage() {
-  const { data, loading, error } = useSalesDetail();
+const { data, loading, error, filters, setFilters, refetch } = useSalesDetail();
+
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -58,6 +61,59 @@ export default function SalesDetailPage() {
                 <Printer className="h-6 w-6 mr-3" /> Imprimer
               </Button>
             </div>
+{/* FILTRES – TOUT EST DE RETOUR */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 print:hidden">
+              <div>
+                <Label>Période</Label>
+                <Select value={filters.periode} onValueChange={(v) => setFilters({ periode: v as any, date_debut: "", date_fin: "" })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Aujourd'hui</SelectItem>
+                    <SelectItem value="week">Cette semaine</SelectItem>
+                    <SelectItem value="month">Ce mois</SelectItem>
+                    <SelectItem value="year">Cette année</SelectItem>
+                    <SelectItem value="custom">Personnalisé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filters.periode === "custom" && (
+                <>
+                  <div>
+                    <Label>Date début</Label>
+                    <Input type="date" value={filters.date_debut || ""} onChange={e => setFilters({ date_debut: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>Date fin</Label>
+                    <Input type="date" value={filters.date_fin || ""} onChange={e => setFilters({ date_fin: e.target.value })} />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <Label>Point de vente</Label>
+                <Select value={filters.point_vente || ""} onValueChange={v => setFilters({ point_vente: v || undefined })}>
+                  <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tous</SelectItem>
+                    {/* Tu peux remplir dynamiquement ici */}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Vendeur</Label>
+                <Select value={filters.vendeur || ""} onValueChange={v => setFilters({ vendeur: v || undefined })}>
+                  <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tous</SelectItem>
+                    {/* Tu peux remplir dynamiquement ici */}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+         
+
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print:grid-cols-4">
