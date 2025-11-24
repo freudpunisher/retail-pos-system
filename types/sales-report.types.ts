@@ -1,5 +1,4 @@
 // src/types/sales-report.types.ts
-
 export interface SaleProduct {
   produit_id: string;
   produit_nom: string;
