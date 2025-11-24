@@ -99,6 +99,8 @@ export default function POSPage() {
   const updateVenteStatusMutation = useUpdateVenteStatus()
   const removeItemMutation = useRemoveItemFromSale()
 console.log("Stocks in POSPage:", stocks);
+
+
   // Get selected client data
   const selectedClient = clients.find(client => client.id === selectedCustomer)
   
@@ -230,8 +232,11 @@ console.log("Stocks in POSPage:", stocks);
   }
 
   const createVentePayload = (status: 'draft' | 'completed' | 'cancelled' | 'returned', paymentStatus: 'pending' | 'paid'): CreateVentePayload => {
+    const user= localStorage.getItem("user");
+const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
+
     const payload: CreateVentePayload = {
-      point_vente: POINT_VENTE_ID,
+      point_vente: poinrDeVenteId,
       status,
       payment_status: paymentStatus,
       remise_globale: globalDiscount.toString(),

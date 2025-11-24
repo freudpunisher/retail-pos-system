@@ -61,6 +61,7 @@ const navigation: NavigationItem[] = [
       { name: "Inventaire", icon: Package, href: "/stock/inventaire" },
     ],
   },
+
   // { name: "Clients", icon: Users, href: "/clients" },
   { name: "Fournisseurs", icon: Factory, href: "/suppliers" },
   // {
@@ -72,7 +73,13 @@ const navigation: NavigationItem[] = [
   //     { name: "Cash Registers", icon: CreditCard, href: "/payments/registers" },
   //   ],
   // },
-  { name: "Raports", icon: FileText, href: "/reports" },
+  { name: "Raports", icon: FileText, 
+    href: "/reports",
+    children: [
+      { name: "ventes", icon: Package, href: "/reports/sales" },
+      
+    ],
+  },
   {
     name: "Parametrage",
     icon: Settings,
