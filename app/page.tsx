@@ -1,14 +1,14 @@
-// app/dashboard/page.tsx  (ou app/page.tsx)
+// app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { POSLayout } from "@/components/pos-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, DollarSign, Package, ShoppingCart, TrendingUp, Users, AlertTriangle, Receipt } from "lucide-react";
+import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Package } from "lucide-react";
 import api from "@/lib/axiosInstance";
 
 interface DashboardData {
@@ -40,15 +40,14 @@ const formatDate = (date: string) =>
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
         const res = await api.get("/sales/dashboard/");
         setData(res.data);
-      } catch {
-        setError(true);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -60,13 +59,13 @@ export default function Dashboard() {
     return (
       <POSLayout currentPath="/">
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-600"></div>
         </div>
       </POSLayout>
     );
   }
 
-  if (error || !data) {
+  if (!data) {
     return (
       <POSLayout currentPath="/">
         <div className="p-8 text-center text-red-600 text-2xl">
@@ -78,172 +77,149 @@ export default function Dashboard() {
 
   return (
     <POSLayout currentPath="/">
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 lg:p-10">
-        <div className="max-w-screen-2xl mx-auto space-y-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-6 lg:p-10 transition-colors">
+        <div className="max-w-screen-2xl mx-auto space-y-10">
 
           {/* Header */}
           <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
             <div>
-              <h1 className="text-4xl font-extrabold text-gray-800 flex items-center gap-4">
-                <TrendingUp className="h-12 w-12 text-emerald-600" />
+              <h1 className="text-4xl font-extrabold text-gray-800 dark:text-gray-100 flex items-center gap-4">
+                <TrendingUp className="h-12 w-12 text-emerald-500" />
                 Tableau de Bord
               </h1>
-              <p className="text-xl text-gray-600 mt-2">
+              <p className="text-xl text-gray-600 dark:text-gray-400 mt-2">
                 Période : du <strong>{formatDate(data.date_debut)}</strong> au <strong>{formatDate(data.date_fin)}</strong>
               </p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" size="lg">
-                <AlertCircle className="h-5 w-5 mr-2" />
-                Voir les alertes
+            <div className="flex gap-4">
+              <Button variant="outline" size="lg" className="border-2">
+                <AlertTriangle className="h-5 w-5 mr-2" />
+                Alertes ({data.alertes_stock + data.ventes_impayees})
               </Button>
-              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
+              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600">
                 <ShoppingCart className="h-5 w-5 mr-2" />
                 Nouvelle vente
               </Button>
             </div>
           </div>
 
-          {/* KPI Cards – Super pro */}
+          {/* KPI Cards – Magnifiques en light & dark */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-            <Card className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-2xl">
+            {/* CA TTC */}
+            <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 text-white shadow-2xl border-0">
               <CardHeader className="pb-3">
-                <CardTitle className="text-emerald-100 text-sm">Chiffre d'Affaires TTC</CardTitle>
-                <DollarSign className="h-8 w-8 text-emerald-200 mt-2" />
+                <CardTitle className="text-emerald-50 text-sm">Chiffre d'Affaires TTC</CardTitle>
+                <DollarSign className="h-9 w-9 text-emerald-200 mt-2" />
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-extrabold">{formatCurrency(data?.kpis?.chiffre_affaires_ttc || 0)}</p>
+                <p className="text-4xl font-extrabold">{formatCurrency(data.kpis.chiffre_affaires_ttc || 0)}</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-2xl">
+            {/* Nombre de ventes */}
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white shadow-2xl border-0">
               <CardHeader className="pb-3">
-                <CardTitle className="text-blue-100 text-sm">Nombre de ventes</CardTitle>
-                <Receipt className="h-8 w-8 text-blue-200 mt-2" />
+                <CardTitle className="text-blue-50 text-sm">Nombre de ventes</CardTitle>
+                <Package className="h-9 w-9 text-blue-200 mt-2" />
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-extrabold">{data.kpis.nombre_ventes}</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white shadow-2xl">
+            {/* Panier moyen */}
+            <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 text-white shadow-2xl border-0">
               <CardHeader className="pb-3">
-                <CardTitle className="text-indigo-100 text-sm">Panier moyen</CardTitle>
-                <ShoppingCart className="h-8 w-8 text-indigo-200 mt-2" />
+                <CardTitle className="text-indigo-50 text-sm">Panier moyen</CardTitle>
+                <ShoppingCart className="h-9 w-9 text-indigo-200 mt-2" />
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-extrabold">{formatCurrency(data.kpis.panier_moyen)}</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-2xl">
+            {/* Marge brute */}
+            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 text-white shadow-2xl border-0">
               <CardHeader className="pb-3">
-                <CardTitle className="text-purple-100 text-sm">Marge brute</CardTitle>
-                <TrendingUp className="h-8 w-8 text-purple-200 mt-2" />
+                <CardTitle className="text-purple-50 text-sm">Marge brute</CardTitle>
+                <TrendingUp className="h-9 w-9 text-purple-200 mt-2" />
               </CardHeader>
               <CardContent>
                 <div className="flex items-end justify-between">
                   <p className="text-4xl font-extrabold">{formatCurrency(data.kpis.marge_brute)}</p>
-                  <Badge className="bg-purple-800 text-purple-100 text-lg">
+                  <Badge className="bg-white/20 text-white text-lg backdrop-blur">
                     {data.kpis.taux_marge.toFixed(1)}%
                   </Badge>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-orange-200 bg-orange-50 shadow-2xl">
+            {/* Alertes critiques */}
+            <Card className="bg-orange-50 dark:bg-orange-900/50 border-2 border-orange-300 dark:border-orange-700 shadow-2xl">
               <CardHeader className="pb-3">
-                <CardTitle className="text-orange-800 text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-6 w-6" />
+                <CardTitle className="text-orange-800 dark:text-orange-200 text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-7 w-7" />
                   Alertes critiques
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Ruptures de stock</span>
-                    <Badge variant="destructive" className="text-lg">{data.alertes_stock}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Ventes impayées</span>
-                    <Badge className="bg-orange-600 text-white text-lg">{data.ventes_impayees}</Badge>
-                  </div>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Ruptures de stock</span>
+                  <Badge variant="destructive" className="text-lg">{data.alertes_stock}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Ventes impayées</span>
+                  <Badge className="bg-orange-600 dark:bg-orange-500 text-white text-lg">{data.ventes_impayees}</Badge>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Top Produits + Actions rapides */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Top 5 Produits */}
-            <Card className="shadow-2xl">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                <CardTitle className="text-2xl font-bold text-blue-800 flex items-center gap-3">
-                  <Package className="h-8 w-8" />
-                  Top 5 Produits Vendus
-                </CardTitle>
-                <CardDescription>Meilleures performances du mois</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="space-y-5">
-                  {data.top_produits.slice(0, 5).map((p, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xl font-bold shadow-lg">
-                          {i + 1}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800">{p.produit__nom}</p>
-                          <p className="text-sm text-gray-500">Ref: {p.produit__reference}</p>
-                        </div>
+          {/* Top 5 Produits – Pleine largeur */}
+          <Card className="shadow-2xl border-0 bg-white dark:bg-slate-900">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 rounded-t-xl">
+              <CardTitle className="text-3xl font-bold text-blue-800 dark:text-blue-300 flex items-center gap-4">
+                <Package className="h-10 w-10" />
+                Top 5 Produits Vendus
+              </CardTitle>
+              <p className="text-lg text-gray-600 dark:text-gray-400">Meilleures performances du mois</p>
+            </CardHeader>
+            <CardContent className="pt-8 pb-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                {data.top_produits.slice(0, 5).map((p, i) => (
+                  <div
+                    key={i}
+                    className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 hover:shadow-2xl transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white flex items-center justify-center text-2xl font-bold shadow-xl">
+                        {i + 1}
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-emerald-600">{p.quantite}</p>
-                        <p className="text-sm text-gray-500">unités</p>
-                      </div>
+                      <Badge variant="secondary" className="text-sm">
+                        {p.produit__reference}
+                      </Badge>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <p className="font-bold text-lg text-gray-800 dark:text-gray-100 line-clamp-2">
+                      {p.produit__nom}
+                    </p>
+                    <div className="mt-4">
+                      <p className="text-4xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                        {p.quantite}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">unités vendues</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Actions rapides */}
-            <Card className="shadow-2xl">
-              <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50">
-                <CardTitle className="text-2xl font-bold text-emerald-800">
-                  Actions rapides
-                </CardTitle>
-                <CardDescription>Opérations fréquentes</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <Button size="lg" className="h-24 text-lg font-semibold bg-emerald-600 hover:bg-emerald-700">
-                    <ShoppingCart className="h-8 w-8 mb-2" />
-                    Nouvelle vente
-                  </Button>
-                  <Button size="lg" variant="outline" className="h-24 text-lg font-semibold border-2">
-                    <Package className="h-8 w-8 mb-2" />
-                    Commande achat
-                  </Button>
-                  <Button size="lg" variant="outline" className="h-24 text-lg font-semibold border-2">
-                    <AlertTriangle className="h-8 w-8 mb-2" />
-                    Voir ruptures
-                  </Button>
-                  <Button size="lg" variant="outline" className="h-24 text-lg font-semibold border-2">
-                    <DollarSign className="h-8 w-8 mb-2" />
-                    Clôture caisse
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Message final */}
-          <div className="text-center py-8">
-            <p className="text-gray-600 text-lg">
+          {/* Footer */}
+          <div className="text-center py-10 border-t border-slate-200 dark:border-slate-700">
+            <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">
               Système POS Retail • Société Commerciale du Burundi
             </p>
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
               Dernière mise à jour : {format(new Date(), "dd MMMM yyyy à HH:mm", { locale: fr })}
             </p>
           </div>
