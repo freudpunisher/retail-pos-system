@@ -92,7 +92,7 @@ export default function SalesDetailPage() {
                 <Select value={filters.point_vente} onValueChange={v => setFilters({ point_vente: v || undefined })}>
                   <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tous</SelectItem>
+                    <SelectItem value="none">Tous</SelectItem>
                     {/* Tu peux remplir dynamiquement avec usePointsVente() */}
                   </SelectContent>
                 </Select>
@@ -103,7 +103,7 @@ export default function SalesDetailPage() {
                 <Select value={filters.vendeur} onValueChange={v => setFilters({ vendeur: v || undefined })}>
                   <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tous</SelectItem>
+                    <SelectItem value="none">Tous</SelectItem>
                     {/* Tu peux remplir dynamiquement avec useUsers() */}
                   </SelectContent>
                 </Select>
@@ -122,7 +122,39 @@ export default function SalesDetailPage() {
                 </p>
               </CardContent>
             </Card>
-            {/* ... autres cards */}
+           <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-2xl">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-emerald-100">Ventes</p>
+                    <p className="text-4xl font-bold mt-2">{data.totals.total_ventes}</p>
+                  </div>
+                  <ShoppingCart className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-indigo-600 to-blue-700 text-white shadow-2xl">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-indigo-100">Articles vendus</p>
+                    <p className="text-4xl font-bold mt-2">{data.totals.total_articles}</p>
+                  </div>
+                  <Receipt className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-2xl">
+              <CardContent className="pt-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100">TVA collectée</p>
+                    <p className="text-4xl font-bold mt-2">{formatCurrency(data.totals.total_tva)}</p>
+                  </div>
+                  <DollarSign className="h-16 w-16 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Tableau */}
@@ -134,7 +166,41 @@ export default function SalesDetailPage() {
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                {/* Même tableau que avant */}
+                <TableHeader>
+                  <TableRow className="bg-blue-50 dark:bg-blue-900/30">
+                    <TableHead className="font-bold text-lg text-blue-700">Facture</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700">Date</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700">Client</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700">Articles</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700">Montant</TableHead>
+                    <TableHead className="font-bold text-lg text-blue-700 text-center">Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.ventes.map((v) => (
+                    <TableRow key={v.numero_facture} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 h-24">
+                      <TableCell className="font-bold text-lg">{v.numero_facture}</TableCell>
+                      <TableCell>{formatDate(v.date_vente)}</TableCell>
+                      <TableCell className="flex items-center gap-3">
+                        <User className="h-5 w-5 text-blue-600" />
+                        {v.client_nom}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-lg px-4 py-2">
+                          {v.nombre_articles}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-bold text-xl text-emerald-600">
+                        {parseFloat(v.montant_ttc).toLocaleString()} FBU
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`text-white ${v.payment_status === "Payé" ? "bg-emerald-500" : "bg-orange-500"}`}>
+                          {v.payment_status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
               </Table>
             </CardContent>
           </Card>
