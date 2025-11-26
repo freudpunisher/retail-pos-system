@@ -479,7 +479,7 @@ export default function ProductsPage() {
                             )} />
                           </div>
                           <div>
-                            <Label className="text-lg font-semibold">Prix de vente (FBU)</Label>
+                            <Label className="text-lg font-semibold">Prix de vente (FC)</Label>
                             <Input type="number" step="0.01" {...prodForm.register("prix_vente")} className="h-12 text-lg mt-2" placeholder="2500" />
                           </div>
                           <div>
@@ -548,7 +548,7 @@ export default function ProductsPage() {
                             <TableRow key={p.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 h-20">
                               <TableCell className="font-bold text-xl">{p.nom}</TableCell>
                               <TableCell><Badge variant="secondary" className="text-base">{cat?.nom || "Inconnue"}</Badge></TableCell>
-                              <TableCell className="font-bold text-lg">{Number(p.prix_vente).toLocaleString()} FBU</TableCell>
+                              <TableCell className="font-bold text-lg">{Number(p.prix_vente).toLocaleString()} FC</TableCell>
                               {/* <TableCell className="text-center">
                                 <Badge className={`text-lg px-6 py-2 ${p.is_active ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
                                   {p.is_active ? "ACTIF" : "INACTIF"}

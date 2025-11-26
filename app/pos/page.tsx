@@ -285,7 +285,7 @@ const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
         queryKey: posStockQueryKeys.byPointVente(POINT_VENTE_ID),
       })
       
-      toast.success(`Vente créée avec succès! Total: ${calculateTotal().toFixed(2)} FBU`)
+      toast.success(`Vente créée avec succès! Total: ${calculateTotal().toFixed(2)} Fc`)
       setBillPrinterOpen(true)
       
     } catch (error) {
@@ -495,7 +495,7 @@ const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
                                           <p className="font-medium text-slate-800 dark:text-slate-200">{item.name}</p>
                                           <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center">
                                             <DollarSign className="h-3 w-3 mr-1" />
-                                            {item.price.toFixed(2)} FBU each
+                                            {item.price.toFixed(2)} Fc each
                                           </p>
                                         </div>
                                       </div>
@@ -521,9 +521,9 @@ const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
                                         </Button>
                                       </div>
                                     </TableCell>
-                                    <TableCell className="font-medium text-slate-800 dark:text-slate-200">{item.price.toFixed(2)} FBU</TableCell>
+                                    <TableCell className="font-medium text-slate-800 dark:text-slate-200">{item.price.toFixed(2)} Fc</TableCell>
                                     <TableCell className="font-bold text-slate-800 dark:text-slate-200">
-                                      {finalTotal.toFixed(2)} FBU
+                                      {finalTotal.toFixed(2)} Fc
                                     </TableCell>
                                     <TableCell>
                                       <Button 
@@ -563,14 +563,14 @@ const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
                           <FileText className="h-4 w-4 mr-2 text-slate-500 dark:text-slate-400" />
                           Sous-total:
                         </span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{calculateSubtotal().toFixed(2)} FBU</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{calculateSubtotal().toFixed(2)} Fc</span>
                       </div>
                       <div className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                         <span className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
                           <Receipt className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" />
                           Taxe (TVA):
                         </span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{calculateTax().toFixed(2)} FBU</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{calculateTax().toFixed(2)} Fc</span>
                       </div>
                     </div>
                     
@@ -582,7 +582,7 @@ const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
                         Total:
                       </span>
                       <span className="text-2xl font-bold text-emerald-800 dark:text-emerald-200">
-                        {calculateTotal().toFixed(2)} FBU
+                        {calculateTotal().toFixed(2)} Fc
                       </span>
                     </div>
                   </CardContent>
@@ -743,10 +743,10 @@ const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
                                 </Badge>
                               </TableCell>
                               <TableCell className="font-medium text-slate-800 dark:text-slate-200">
-                                {parseFloat(vente.montant_ht || '0').toFixed(2)} FBU
+                                {parseFloat(vente.montant_ht || '0').toFixed(2)} Fc
                               </TableCell>
                               <TableCell className="font-bold text-slate-800 dark:text-slate-200">
-                                {parseFloat(vente.montant_ttc || '0').toFixed(2)} FBU
+                                {parseFloat(vente.montant_ttc || '0').toFixed(2)} Fc
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="text-xs">
@@ -821,10 +821,10 @@ const poinrDeVenteId = user ? JSON.parse(user).point_vente.id : null;
                                                 <p className="font-medium text-slate-800 dark:text-slate-200">{ligne.produit_nom}</p>
                                                 <div className="flex items-center space-x-4 text-sm text-slate-600 dark:text-slate-300 mt-1">
                                                   <span>Qté: {ligne.quantite}</span>
-                                                  <span>Unitaire: {parseFloat(ligne.prix_unitaire_ht || '0').toFixed(2)} FBU</span>
+                                                  <span>Unitaire: {parseFloat(ligne.prix_unitaire_ht || '0').toFixed(2)} Fc</span>
                                                   <span>TVA: {ligne.taux_tva}%</span>
                                                   {ligne.remise_pourcentage !== '0' && <span>Remise: {ligne.remise_pourcentage}%</span>}
-                                                  <span className="font-medium text-slate-800 dark:text-slate-200">Total: {parseFloat(ligne.montant_ttc || '0').toFixed(2)} FBU</span>
+                                                  <span className="font-medium text-slate-800 dark:text-slate-200">Total: {parseFloat(ligne.montant_ttc || '0').toFixed(2)} Fc</span>
                                                 </div>
                                               </div>
                                               <Button

@@ -9,7 +9,7 @@ import {
 export const posStockQueryKeys = {
   all: ['pos-stocks'] as const,
   lists: () => [...posStockQueryKeys.all, 'list'] as const,
-  list: (filters: StockFilters) => [...posStockQueryKeys.lists(), filters] as const,
+  list: (filters?: Partial<StockFilters>) => [...posStockQueryKeys.lists(), filters] as const,
   details: () => [...posStockQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...posStockQueryKeys.details(), id] as const,
   byPointVente: (pointVenteId: string) => [...posStockQueryKeys.all, 'point-vente', pointVenteId] as const,
@@ -31,7 +31,7 @@ export const usePOSStocks = (filters?: StockFilters) => {
 // Hook to get stocks for a specific point de vente
 export const useStocksByPointVente = (pointVenteId: string, filters?: Omit<StockFilters, 'point_vente'>) => {
   const user= localStorage.getItem("user");
-const userId = user ? JSON.parse(user).point_vente.id : null;
+const userId = user ? JSON.parse(user).point_vente.id : "" ;
   return useQuery({
     queryKey: posStockQueryKeys.byPointVente(userId),
     queryFn: () => posStockService.getStocksByPointVente(userId, filters),

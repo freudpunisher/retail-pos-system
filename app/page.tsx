@@ -32,7 +32,7 @@ interface DashboardData {
 }
 
 const formatCurrency = (value: number) =>
-  value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " FBU";
+  value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " FC";
 
 const formatDate = (date: string) =>
   format(new Date(date), "dd MMMM yyyy", { locale: fr });

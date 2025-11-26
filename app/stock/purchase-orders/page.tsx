@@ -227,7 +227,7 @@ export default function PurchaseOrdersPage() {
                     <div>
                       <p className="text-indigo-100">Montant Total</p>
                       <p className="text-2xl font-bold mt-1">
-                        {stats.totalAmount.toLocaleString()} FBU
+                        {stats.totalAmount.toLocaleString()} FC
                       </p>
                     </div>
                     <Package className="h-12 w-12 opacity-80" />
@@ -313,7 +313,7 @@ export default function PurchaseOrdersPage() {
                             </TableCell>
                             <TableCell>{new Date(po.date_livraison_prevue).toLocaleDateString("fr-FR")}</TableCell>
                             <TableCell className="text-right font-bold text-lg">
-                              {po.montant_total.toLocaleString("fr-FR")} FBU
+                              {po.montant_total.toLocaleString("fr-FR")} FC
                             </TableCell>
                             <TableCell className="text-center font-semibold">{po.lignes?.length ?? 0}</TableCell>
                             <TableCell>
@@ -427,7 +427,7 @@ export default function PurchaseOrdersPage() {
 
             {/* ==================== MODAL VOIR ==================== */}
             <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-              <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl">
+              <DialogContent className="ymax-w-6xl max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl" style={{width:"80vh" , maxWidth:"80vh"}}>
                 <DialogHeader>
                   <DialogTitle className="text-3xl font-bold flex items-center gap-4">
                     <Eye className="h-10 w-10 text-blue-600" />
@@ -670,7 +670,7 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
 
                       <TableCell className="text-center">
                         {isViewMode ? (
-                          <span className="font-mono">{Number(item.prix_unitaire).toLocaleString()} FBU</span>
+                          <span className="font-mono">{Number(item.prix_unitaire).toLocaleString()} FC</span>
                         ) : (
                           <Input
                             type="number"
@@ -684,7 +684,7 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
                       </TableCell>
 
                       <TableCell className="text-center font-bold text-lg">
-                        {lineTotal.toLocaleString()} FBU
+                        {lineTotal.toLocaleString()} FC
                       </TableCell>
 
                       {!isViewMode && (
@@ -716,7 +716,7 @@ function PurchaseOrderForm({ mode, formData, setFormData, fournisseurs, pointsVe
           <div className="flex justify-between items-center">
             <span className="text-2xl font-bold">TOTAL COMMANDE</span>
             <span className="text-4xl font-extrabold">
-              {totalCommande.toLocaleString("fr-FR")} FBU
+              {totalCommande.toLocaleString("fr-FR")} FC
             </span>
           </div>
         </div>
