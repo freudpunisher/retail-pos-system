@@ -352,7 +352,8 @@ export default function SalesDetailPage() {
           
 {/* === BLOC D'IMPRESSION - VERSION TICKET VERTICAL (SANS KPI) === */}
 
- <div className="hidden">
+ {/* === BLOC D'IMPRESSION - VERSION TICKET VERTICAL (SANS KPI) === */}
+<div className="hidden">
   <div ref={printRef} className="bg-white p-8 text-black font-sans">
 
     {/* EN-TÊTE RAPPORT */}
