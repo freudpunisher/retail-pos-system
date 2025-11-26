@@ -184,7 +184,7 @@ export default function SalesDetailPage() {
                       placeholder="Rechercher par facture ou client..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 h-12 text-base"
+                      className="pl-10 h-12 text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                     <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                   </div>
@@ -197,7 +197,7 @@ export default function SalesDetailPage() {
                       type="date"
                       value={filters.date_debut || ""}
                       onChange={(e) => setFilters({ ...filters, date_debut: e.target.value })}
-                      className="h-12"
+                      className="h-12 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
                   <div>
@@ -206,21 +206,21 @@ export default function SalesDetailPage() {
                       type="date"
                       value={filters.date_fin || ""}
                       onChange={(e) => setFilters({ ...filters, date_fin: e.target.value })}
-                      className="h-12"
+                      className="h-12 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
                   <div>
                     <Label>Point de vente</Label>
                     <Select value={filters.point_vente || ""} onValueChange={(v) => setFilters({ ...filters, point_vente: v || undefined })}>
-                      <SelectTrigger className="h-12"><SelectValue placeholder="Tous" /></SelectTrigger>
-                      <SelectContent><SelectItem value="none">Tous</SelectItem></SelectContent>
+                      <SelectTrigger className="h-12 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500"><SelectValue placeholder="Tous" /></SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500"><SelectItem value="none">Tous</SelectItem></SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label>Vendeur</Label>
                     <Select value={filters.vendeur || ""} onValueChange={(v) => setFilters({ ...filters, vendeur: v || undefined })}>
-                      <SelectTrigger className="h-12"><SelectValue placeholder="Tous" /></SelectTrigger>
-                      <SelectContent><SelectItem value="none">Tous</SelectItem></SelectContent>
+                      <SelectTrigger className="h-12 px-16 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500"><SelectValue placeholder="Tous" /></SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 focus:border-emerald-500"><SelectItem value="none">Tous</SelectItem></SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -350,14 +350,15 @@ export default function SalesDetailPage() {
           
 
           
-{/* === BLOC D'IMPRESSION - VERSION TICKET VERTICAL (SANS KPI) === */}
+
 
  {/* === BLOC D'IMPRESSION - VERSION TICKET VERTICAL (SANS KPI) === */}
+{/* === BLOC D'IMPRESSION - FORMAT TICKET ALIGNÉ À GAUCHE (SANS KPI) === */}
 <div className="hidden">
-  <div ref={printRef} className="bg-white p-8 text-black font-sans">
+  <div ref={printRef} className="bg-white p-8 text-black font-sans max-w-4xl mx-auto">
 
     {/* EN-TÊTE RAPPORT */}
-    <div className="text-center pb-6 border-b-4 border-gray-900 mb-10">
+    <div className="border-b-4 border-gray-900 pb-6 mb-10">
       <h1 className="text-4xl font-bold uppercase tracking-wider">Rapport de Ventes Détaillé</h1>
       <p className="text-xl mt-5">
         Période du <strong>{format(new Date(data.date_debut), "dd MMMM yyyy", { locale: fr })}</strong> au <strong>{format(new Date(data.date_fin), "dd MMMM yyyy", { locale: fr })}</strong>
@@ -367,62 +368,62 @@ export default function SalesDetailPage() {
       </p>
     </div>
 
-    {/* TOUTES LES VENTES - FORMAT VERTICAL TYPE TICKET */}
-    <div className="space-y-12">
+    {/* TOUTES LES VENTES - FORMAT TICKET CLASSIQUE ALIGNÉ À GAUCHE */}
+    <div className="space-y-10">
       {data.ventes.map((vente, index) => (
         <div key={vente.numero_facture} className="border-2 border-gray-900">
 
-          {/* === Ligne principale - Format vertical (comme un vrai ticket) === */}
-          <div className="bg-gray-100 p-6 text-center space-y-3">
-            <div className="text-3xl font-bold text-emerald-700">
-              {vente.numero_facture}
+          {/* === Ligne principale – Tout aligné à gauche comme un vrai ticket === */}
+          <div className="bg-gray-100 p-6 space-y-3">
+            <div className=" font-bold text-emerald-700">
+              Facture N° {vente.numero_facture}
             </div>
-            <div className="text-lg font-semibold">
-              {formatDate(vente.date_vente)}
+            <div className=" font-medium">
+              Date : {formatDate(vente.date_vente)}
             </div>
-            <div className="text-lg">
-              <span className="font-medium">Client :</span> {vente.client_nom || "Client passage"}
+            <div className="">
+              Client : <span className="font-medium">{vente.client_nom || "Client passage"}</span>
             </div>
-            <div className="text-lg font-medium">
-              {vente.nombre_articles} article{vente.nombre_articles > 1 ? 's' : ''} vendu{vente.nombre_articles > 1 ? 's' : ''}
+            <div className="">
+              Articles vendus : <span className="font-bold">{vente.nombre_articles}</span>
             </div>
-            <div className="text-4xl font-extrabold text-emerald-600 mt-4">
+            <div className=" font-extrabold text-emerald-600 mt-4">
               {formatCurrency(Number(vente.montant_ttc))}
             </div>
-            <div className="mt-3">
+            <div className="mt-4">
               <span className={`
-                inline-block px-6 py-2 rounded-full text-white font-bold text-lg
+                inline-block px-8 py-3 rounded-lg text-white font-bold text-lg
                 ${vente.payment_status === "Payé" ? "bg-emerald-600" : "bg-orange-600"}
               `}>
-                {vente.payment_status}
+                {vente.payment_status.toUpperCase()}
               </span>
             </div>
           </div>
 
-          {/* === Détail des articles en tableau === */}
-          <div className="p-4 bg-white">
-            <table className="w-full text-sm border-t-2 border-gray-900">
+          {/* === Tableau des articles (propre et aligné) === */}
+          <div className="p-6 bg-white">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-900">
-                  <th className="text-left py-3 px-4 font-bold">Produit</th>
-                  <th className="text-center py-3 px-4 font-bold w-20">Qté</th>
-                  <th className="text-right py-3 px-4 font-bold w-32">Prix HT</th>
-                  <th className="text-right py-3 px-4 font-bold w-24">TVA</th>
-                  <th className="text-right py-3 px-4 font-bold w-32">Remise</th>
-                  <th className="text-right py-3 px-4 font-bold w-36">Total TTC</th>
+                <tr className="border-b-2 border-gray-900">
+                  <th className="text-left py-3 font-bold">Désignation</th>
+                  <th className="text-center py-3 font-bold w-20">Qté</th>
+                  <th className="text-right py-3 font-bold w-32">PU HT</th>
+                  <th className="text-right py-3 font-bold w-24">TVA</th>
+                  <th className="text-right py-3 font-bold w-32">Remise</th>
+                  <th className="text-right py-3 font-bold w-36">Total TTC</th>
                 </tr>
               </thead>
               <tbody>
                 {vente.produits.map((p, i) => (
                   <tr key={i} className="border-b border-gray-300">
-                    <td className="py-3 px-4 font-medium">{p.produit_nom}</td>
-                    <td className="py-3 px-4 text-center font-bold">{p.quantite}</td>
-                    <td className="py-3 px-4 text-right">{formatCurrency(Number(p.prix_unitaire_ht))}</td>
-                    <td className="py-3 px-4 text-right">{p.taux_tva}%</td>
-                    <td className="py-3 px-4 text-right text-red-600">
+                    <td className="py-3 font-medium">{p.produit_nom}</td>
+                    <td className="py-3 text-center font-bold">{p.quantite}</td>
+                    <td className="py-3 text-right">{formatCurrency(Number(p.prix_unitaire_ht))}</td>
+                    <td className="py-3 text-right">{p.taux_tva}%</td>
+                    <td className="py-3 text-right text-red-600">
                       {Number(p.remise_pourcentage) > 0 ? `-${p.remise_pourcentage}%` : "-"}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-emerald-600">
+                    <td className="py-3 text-right font-bold text-emerald-600">
                       {formatCurrency(Number(p.montant_ttc))}
                     </td>
                   </tr>
@@ -431,18 +432,20 @@ export default function SalesDetailPage() {
             </table>
           </div>
 
-          {/* Séparateur entre ventes */}
+          {/* Séparateur entre chaque ticket */}
           {index < data.ventes.length - 1 && (
-            <div className="my-8 border-t-4 border-dashed border-gray-600"></div>
+            <div className="my-10 border-t-4 border-dashed border-gray-700"></div>
           )}
         </div>
       ))}
     </div>
 
     {/* PIED DE PAGE */}
-    <div className="mt-16 pt-8 border-t-4 border-gray-900 text-center">
-      <p className="text-xl font-bold">Rapport généré automatiquement par le système POS</p>
-      <p className="mt-3 text-gray-600 text-lg">
+    <div className="mt-16 pt-8 border-t-4 border-gray-900">
+      <p className="text-xl font-bold text-center">
+        Rapport généré automatiquement par le système POS Retail
+      </p>
+      <p className="text-center text-gray-600 mt-3 text-lg">
         © 2025 - Société Commerciale du Burundi - Tous droits réservés
       </p>
     </div>
